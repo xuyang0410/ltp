@@ -11,16 +11,13 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-#include <sys/mount.h>
 
 #include "tst_test.h"
-#include "tst_safe_macros.h"
 #include "lapi/newmount.h"
 
 #define LINELENGTH 256
 #define MNTPOINT "newmount_point"
-static int sfd, mfd;
-static int is_mounted = 0;
+static int sfd, mfd, is_mounted;
 
 static int ismount(char *mntpoint)
 {
@@ -108,7 +105,6 @@ static struct tst_test test = {
 	.cleanup	= cleanup,
 	.needs_root	= 1,
 	.mntpoint	= MNTPOINT,
-	.needs_device	= 1,
 	.format_device	= 1,
 	.all_filesystems = 1,
 };
