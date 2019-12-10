@@ -7,10 +7,10 @@
 
 #include <sys/types.h>
 
-//#ifdef HAVE_SYS_USTAT_H
-//# include <sys/ustat.h>
-//#else
-//# include <stdint.h>
+#ifdef HAVE_SYS_USTAT_H
+# include <sys/ustat.h>
+#else
+# include <stdint.h>
 struct ustat {
 	__kernel_daddr_t f_tfree;
 	ino_t f_tinode;
