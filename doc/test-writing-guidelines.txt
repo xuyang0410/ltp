@@ -493,7 +493,10 @@ this needed.
 
 If '.needs_tmpdir' is set to '1' in the 'struct tst_test' unique test
 temporary is created and it's set as the test working directory. Tests *MUST
-NOT* create temporary files outside that directory.
+NOT* create temporary files outside that directory. The flag is not needed to
+be set when use these flags: '.all_filesystems', '.format_device', '.mntpoint',
+'.mount_device' '.needs_checkpoints', '.needs_device', '.resource_file'
+(these flags imply creating temporary directory).
 
 IMPORTANT: Close all file descriptors (that point to files in test temporary
            directory, even the unlinked ones) either in the 'test()' function
@@ -2122,6 +2125,7 @@ simply by setting right '$TST_NEEDS_FOO'.
 | 'TST_NEEDS_TMPDIR' | Create test temporary directory and cd into it.
 | 'TST_NEEDS_DEVICE' | Prepare test temporary device, the path to testing
                        device is stored in '$TST_DEVICE' variable.
+                       The option implies 'TST_NEEDS_TMPDIR'.
 | 'TST_NEEDS_CMDS'   | String with command names that has to be present for
                        the test (see below).
 | 'TST_NEEDS_MODULE' | Test module name needed for the test (see below).
