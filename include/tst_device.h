@@ -18,6 +18,9 @@
 #ifndef TST_DEVICE_H__
 #define TST_DEVICE_H__
 
+#include <unistd.h>
+#include <sys/syscall.h>
+
 struct tst_device {
 	const char *dev;
 	const char *fs_type;
@@ -67,6 +70,16 @@ int tst_attach_device(const char *dev_path, const char *file_path);
  * @return Zero on succes, non-zero otherwise.
  */
 int tst_detach_device(const char *dev_path);
+
+/*
+ * To avoid FS deferred IO metadata/cache interference, so we do syncfs
+ * simply before the tst_dev_bytes_written invocation. For easy to use,
+ * we create this inline function tst_dev_sync.
+ */
+static inline int tst_dev_sync(int fd)
+{
+	return syscall(__NR_syncfs, fd);
+}
 
 /*
  * Reads test block device stat file and returns the bytes written since the
