@@ -14,6 +14,7 @@
 #include "tst_test.h"
 #include "lapi/fcntl.h"
 #include "lapi/abisize.h"
+#include "lapi/capability.h"
 
 static int fds[2];
 static unsigned int orig_value, struct_shift, max_shift;
@@ -23,11 +24,13 @@ static struct tcase {
 	unsigned int multi;
 	unsigned int exp_multi;
 	int hole;
+	int pass_flag;
 	char *message;
 } tcases[] = {
-	{1, 1, 1, "set a value of blew page size"},
-	{2, 2, 0, "set a normal value"},
-	{0, 0, 0, "set a max value"},
+	{1, 1, 1, 1, "set a value of blew page size"},
+	{2, 2, 0, 1, "set a normal value"},
+	{0, 0, 0, 1, "set a max value"},
+	{0, 0, -1, 0, "set a value beyond max"},
 };
 
 static void verify_fcntl(unsigned int n)
@@ -45,9 +48,19 @@ static void verify_fcntl(unsigned int n)
 
 	pipe_value = tc->multi * pg_size - tc->hole;
 	TEST(fcntl(fds[1], F_SETPIPE_SZ, pipe_value));
-	if (TST_RET == -1) {
+	if (tc->pass_flag && TST_RET == -1) {
 		tst_res(TFAIL | TTERRNO, "F_SETPIPE_SZ failed");
 		return;
+	}
+	if (!tc->pass_flag) {
+		if (TST_RET == -1) {
+			if (TST_ERR == ENOMEM)
+				tst_res(TPASS | TTERRNO, "F_SETPIPE_SZ failed");
+			else
+				tst_res(TFAIL | TTERRNO,
+					"F_SETPIPE_SZ failed expected ENOMEM got");
+		} else
+			tst_res(TFAIL, "F_SETPIPE_SZ succeed unexpectedly");
 	}
 
 	TEST(fcntl(fds[1], F_GETPIPE_SZ));
@@ -87,7 +100,7 @@ static void setup(void)
 #ifdef TST_ABI64
 	struct_shift = 6;
 #else
-	struct_shitf = 5;
+	struct_shift = 5;
 #endif
 	max_shift = 10;
 
