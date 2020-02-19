@@ -323,6 +323,7 @@ setgid 214
 setfsuid 215
 setfsgid 216
 newfstatat 293
+syncfs 338
 process_vm_readv 340
 process_vm_writev 341
 kcmp 343
@@ -339,7 +340,18 @@ mlock2 374
 copy_file_range 375
 preadv2 376
 pwritev2 377
+io_pgetevents 382
 pkey_mprotect 384
 pkey_alloc 385
 pkey_free 386
 pidfd_send_signal 424
+io_uring_setup 425
+io_uring_enter 426
+io_uring_register 427
+open_tree 428
+move_mount 429
+fsopen 430
+fsconfig 431
+fsmount 432
+fspick 433
+pidfd_open 434

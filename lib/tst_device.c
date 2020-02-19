@@ -31,6 +31,7 @@
 #include <linux/loop.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include "lapi/syscalls.h"
 #include "test.h"
 #include "safe_macros.h"
 
@@ -222,6 +223,11 @@ int tst_detach_device(const char *dev)
 	return 1;
 }
 
+int tst_dev_sync(int fd)
+{
+	return syscall(__NR_syncfs, fd);
+}
+
 const char *tst_acquire_device__(unsigned int size)
 {
 	int fd;
@@ -357,10 +363,17 @@ int tst_umount(const char *path)
 		if (!ret)
 			return 0;
 
+		if (err != EBUSY) {
+			tst_resm(TWARN, "umount('%s') failed with %s",
+		         path, tst_strerrno(err));
+			errno = err;
+			return ret;
+		}
+
 		tst_resm(TINFO, "umount('%s') failed with %s, try %2i...",
 		         path, tst_strerrno(err), i+1);
 
-		if (i == 0 && err == EBUSY) {
+		if (i == 0) {
 			tst_resm(TINFO, "Likely gvfsd-trash is probing newly "
 			         "mounted fs, kill it to speed up tests.");
 		}
@@ -373,16 +386,37 @@ int tst_umount(const char *path)
 	return -1;
 }
 
+int find_stat_file(const char *dev, char *path, size_t path_len)
+{
+	const char *devname = strrchr(dev, '/') + 1;
+
+	snprintf(path, path_len, "/sys/block/%s/stat", devname);
+
+	if (!access(path, F_OK))
+		return 1;
+
+	DIR *dir = SAFE_OPENDIR(NULL, "/sys/block/");
+	struct dirent *ent;
+
+	while ((ent = readdir(dir))) {
+		snprintf(path, path_len, "/sys/block/%s/%s/stat", ent->d_name, devname);
+
+		if (!access(path, F_OK)) {
+			SAFE_CLOSEDIR(NULL, dir);
+			return 1;
+		}
+	}
+
+	SAFE_CLOSEDIR(NULL, dir);
+	return 0;
+}
+
 unsigned long tst_dev_bytes_written(const char *dev)
 {
-	struct stat st;
 	unsigned long dev_sec_write = 0, dev_bytes_written, io_ticks = 0;
 	char dev_stat_path[1024];
 
-	snprintf(dev_stat_path, sizeof(dev_stat_path), "/sys/block/%s/stat",
-		 strrchr(dev, '/') + 1);
-
-	if (stat(dev_stat_path, &st) != 0)
+	if (!find_stat_file(dev, dev_stat_path, sizeof(dev_stat_path)))
 		tst_brkm(TCONF, NULL, "Test device stat file: %s not found",
 			 dev_stat_path);
 

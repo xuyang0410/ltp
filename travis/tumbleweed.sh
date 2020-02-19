@@ -1,11 +1,12 @@
 #!/bin/sh
-# Copyright (c) 2018 Petr Vorel <pvorel@suse.cz>
-set -e
+# Copyright (c) 2018-2020 Petr Vorel <pvorel@suse.cz>
+set -ex
 
 zypper --non-interactive install --no-recommends \
 	autoconf \
 	automake \
 	clang \
+	findutils \
 	gcc \
 	gzip \
 	make \

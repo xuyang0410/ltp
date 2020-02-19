@@ -1,6 +1,6 @@
 #!/bin/sh
-# Copyright (c) 2018-2019 Petr Vorel <pvorel@suse.cz>
-set -e
+# Copyright (c) 2018-2020 Petr Vorel <pvorel@suse.cz>
+set -ex
 
 # workaround for missing oldstable-updates repository
 # W: Failed to fetch http://deb.debian.org/debian/dists/oldstable-updates/main/binary-amd64/Packages
@@ -36,3 +36,5 @@ apt install -y --no-install-recommends \
 	libtirpc-dev \
 	linux-libc-dev \
 	lsb-release
+
+df -hT

@@ -44,6 +44,8 @@ capget02 capget02
 
 capset01 capset01
 capset02 capset02
+capset03 capset03
+capset04 capset04
 
 cacheflush01 cacheflush01
 
@@ -339,6 +341,8 @@ fpathconf01 fpathconf01
 fremovexattr01 fremovexattr01
 fremovexattr02 fremovexattr02
 
+fsmount01 fsmount01
+
 fstat02 fstat02
 fstat02_64 fstat02_64
 fstat03 fstat03
@@ -554,6 +558,10 @@ ioprio_set03 ioprio_set03
 io_cancel01 io_cancel01
 io_destroy01 io_destroy01
 io_getevents01 io_getevents01
+
+io_pgetevents01 io_pgetevents01
+io_pgetevents02 io_pgetevents02
+
 io_setup01 io_setup01
 io_submit01 io_submit01
 
@@ -846,6 +854,10 @@ pause03 pause03
 personality01 personality01
 personality02 personality02
 
+pidfd_open01 pidfd_open01
+pidfd_open02 pidfd_open02
+pidfd_open03 pidfd_open03
+
 pidfd_send_signal01 pidfd_send_signal01
 pidfd_send_signal02 pidfd_send_signal02
 pidfd_send_signal03 pidfd_send_signal03
@@ -861,6 +873,7 @@ pipe08 pipe08
 pipe09 pipe09
 pipe10 pipe10
 pipe11 pipe11
+pipe12 pipe12
 
 pipe2_01 pipe2_01
 pipe2_02 pipe2_02
@@ -1548,6 +1561,7 @@ vhangup02 vhangup02
 vmsplice01 vmsplice01
 vmsplice02 vmsplice02
 vmsplice03 vmsplice03
+vmsplice04 vmsplice04
 
 wait01 wait01
 wait02 wait02
