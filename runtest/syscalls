@@ -935,7 +935,6 @@ pselect03 pselect03
 pselect03_64 pselect03_64
 
 ptrace01 ptrace01
-ptrace02 ptrace02
 ptrace03 ptrace03
 ptrace04 ptrace04
 ptrace05 ptrace05
@@ -971,6 +970,7 @@ quotactl03 quotactl03
 quotactl04 quotactl04
 quotactl05 quotactl05
 quotactl06 quotactl06
+quotactl07 quotactl07
 
 read01 read01
 read02 read02
