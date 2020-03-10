@@ -24,7 +24,6 @@ Do not reinvent the wheel!
 * Do not add custom PASS/FAIL reporting functions
 * Do not write Makefiles from scratch,
   use LTP build system instead, etc.
-* ...
 
 1.2 Code duplication
 ~~~~~~~~~~~~~~~~~~~~
@@ -327,6 +326,15 @@ time may vary arbitrarily, for these timeout can be disabled by setting it to
 Test can find out how much time (in seconds) is remaining to timeout,
 by calling 'tst_timeout_remaining()'.
 
+LAPI headers
+++++++++++++
+
+Use our LAPI headers ('include "lapi/foo.h"') to keep compatibility with old
+distributions. LAPI header should always include original header. Older linux
+headers were problematic, therefore we preferred to use libc headers. There are
+still some bugs when combining certain glibc headers with linux headers, see
+https://sourceware.org/glibc/wiki/Synchronizing_Headers.
+
 A word about the cleanup() callback
 +++++++++++++++++++++++++++++++++++
 
@@ -421,6 +429,7 @@ Printf-like function to report test result, it's mostly used with ttype:
 | 'TPASS' | Test has passed.
 | 'TFAIL' | Test has failed.
 | 'TINFO' | General message.
+| 'TWARN' | Something went wrong but we decided to continue. Mostly used in cleanup functions.
 |==============================
 
 The 'ttype' can be combined bitwise with 'TERRNO' or 'TTERRNO' to print
@@ -724,7 +733,7 @@ static void do_test(void)
 
 	execve(path, argv, environ);
 
-	tst_res(TBROK | TERRNO, "EXEC!");
+	tst_res(TFAIL | TERRNO, "EXEC!");
 }
 
 static struct tst_test test = {
@@ -1816,7 +1825,7 @@ static void run(void)
 	if (TST_RET > -1) {
 		tst_res(TFAIL, "Created raw socket");
 	} else if (TST_ERR != EPERM) {
-		tst_res(TBROK | TTERRNO,
+		tst_res(TFAIL | TTERRNO,
 			"Failed to create socket for wrong reason");
 	} else {
 		tst_res(TPASS | TTERRNO, "Didn't create raw socket");
@@ -1952,6 +1961,67 @@ The library decides how long the test should run for based on the timeout
 specified by the user plus some other heuristics.
 
 For full documentation see the comments in 'include/tst_fuzzy_sync.h'.
+
+2.2.34 Reserving hugepages
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Many of the LTP tests need to use hugepage in their testing, this allows the
+test can reserve hugepages from system only via '.request_hugepages = xx'.
+
+If set non-zero number of 'request_hugepages', test will try to reserve the
+expected number of hugepage for testing in setup phase. If system does not
+have enough hpage for using, it will try the best to reserve 80% available
+number of hpages. With success test stores the reserved hugepage number in
+'tst_hugepages'. For the system without hugetlb supporting, variable
+'tst_hugepages' will be set to 0.
+
+Also, we do cleanup and restore work for the hpages resetting automatically.
+
+[source,c]
+-------------------------------------------------------------------------------
+#include "tst_test.h"
+
+static void run(void)
+{
+	...
+
+	if (tst_hugepages == test.request_hugepages)
+		TEST(do_hpage_test);
+	else
+		...
+	...
+}
+
+struct tst_test test = {
+	.test_all = run,
+	.request_hugepages = 2,
+	...
+};
+[source,c]
+-------------------------------------------------------------------------------
+
+or,
+
+-------------------------------------------------------------------------------
+#include "tst_test.h"
+
+static void run(void)
+{
+	...
+}
+
+static void setup(void)
+{
+        if (tst_hugepages != test.requested_hugepages)
+                tst_brk(TCONF, "...");
+}
+
+struct tst_test test = {
+	.test_all = run,
+	.request_hugepages = 2,
+	...
+};
+-------------------------------------------------------------------------------
 
 2.3 Writing a testcase in shell
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -2138,7 +2208,8 @@ simply by setting right '$TST_NEEDS_FOO'.
 [options="header"]
 |=============================================================================
 | Variable name      | Action done
-| 'TST_NEEDS_ROOT'   | Exit the test with 'TCONF' unless executed under root
+| 'TST_NEEDS_ROOT'   | Exit the test with 'TCONF' unless executed under root.
+|                    | Alternatively the 'tst_require_root' command can be used.
 | 'TST_NEEDS_TMPDIR' | Create test temporary directory and cd into it.
 | 'TST_NEEDS_DEVICE' | Prepare test temporary device, the path to testing
                        device is stored in '$TST_DEVICE' variable.
@@ -2204,6 +2275,9 @@ module in a few possible paths.
 
 If module was found the path to it will be stored into '$TST_MODPATH'
 variable, if module wasn't found the test will exit with 'TCONF'.
+
+Alternatively the 'tst_require_module()' function can be used to do the same
+at runtime.
 
 2.3.3 Optional command line parameters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

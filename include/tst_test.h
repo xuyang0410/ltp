@@ -37,6 +37,7 @@
 #include "tst_coredump.h"
 #include "tst_buffers.h"
 #include "tst_capability.h"
+#include "tst_hugepage.h"
 
 /*
  * Reports testcase result.
@@ -46,7 +47,11 @@ void tst_res_(const char *file, const int lineno, int ttype,
               __attribute__ ((format (printf, 4, 5)));
 
 #define tst_res(ttype, arg_fmt, ...) \
-	tst_res_(__FILE__, __LINE__, (ttype), (arg_fmt), ##__VA_ARGS__)
+	({									\
+		TST_RES_SUPPORTS_TCONF_TFAIL_TINFO_TPASS_TWARN(!((TTYPE_RESULT(ttype) ?: TCONF) & \
+			(TCONF | TFAIL | TINFO | TPASS | TWARN))); 				\
+		tst_res_(__FILE__, __LINE__, (ttype), (arg_fmt), ##__VA_ARGS__);\
+	})
 
 void tst_resm_hexd_(const char *file, const int lineno, int ttype,
 	const void *buf, size_t size, const char *arg_fmt, ...)
@@ -147,6 +152,18 @@ struct tst_test {
 	 * to the test function.
 	 */
 	int all_filesystems:1;
+
+	/*
+	 * If set non-zero number of request_hugepages, test will try to reserve the
+	 * expected number of hugepage for testing in setup phase. If system does not
+	 * have enough hpage for using, it will try the best to reserve 80% available
+	 * number of hpages. With success test stores the reserved hugepage number in
+	 * 'tst_hugepages. For the system without hugetlb supporting, variable
+	 * 'tst_hugepages' will be set to 0.
+	 *
+	 * Also, we do cleanup and restore work for the hpages resetting automatically.
+	 */
+	unsigned int request_hugepages;
 
 	/*
 	 * If set non-zero denotes number of test variant, the test is executed

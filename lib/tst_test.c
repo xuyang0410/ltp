@@ -181,7 +181,7 @@ static void print_result(const char *file, const int lineno, int ttype,
 {
 	char buf[1024];
 	char *str = buf;
-	int ret, size = sizeof(buf), ssize, int_errno;
+	int ret, size = sizeof(buf), ssize, int_errno, buflen;
 	const char *str_errno = NULL;
 	const char *res;
 
@@ -255,7 +255,17 @@ static void print_result(const char *file, const int lineno, int ttype,
 
 	snprintf(str, size, "\n");
 
-	fputs(buf, stderr);
+	/* we might be called from signal handler, so use write() */
+	buflen = str - buf + 1;
+	str = buf;
+	while (buflen) {
+		ret = write(STDERR_FILENO, str, buflen);
+		if (ret <= 0)
+			break;
+
+		str += ret;
+		buflen -= ret;
+	}
 }
 
 void tst_vres_(const char *file, const int lineno, int ttype,
@@ -890,6 +900,9 @@ static void do_setup(int argc, char *argv[])
 	if (tst_test->all_filesystems)
 		tst_test->needs_device = 1;
 
+	if (tst_test->request_hugepages)
+		tst_request_hugepages(tst_test->request_hugepages);
+
 	setup_ipc();
 
 	if (tst_test->bufs)
@@ -1006,8 +1019,7 @@ static void do_cleanup(void)
 		tst_rmdir();
 	}
 
-	if (tst_test->save_restore)
-		tst_sys_conf_restore(0);
+	tst_sys_conf_restore(0);
 
 	if (tst_test->restore_wallclock)
 		tst_wallclock_restore();

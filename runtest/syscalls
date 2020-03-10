@@ -186,6 +186,7 @@ fallocate02 fallocate02
 fallocate03 fallocate03
 fallocate04 fallocate04
 fallocate05 fallocate05
+fallocate06 fallocate06
 
 fsetxattr01 fsetxattr01
 fsetxattr02 fsetxattr02
@@ -874,6 +875,7 @@ pipe09 pipe09
 pipe10 pipe10
 pipe11 pipe11
 pipe12 pipe12
+pipe13 pipe13
 
 pipe2_01 pipe2_01
 pipe2_02 pipe2_02
@@ -1352,7 +1354,6 @@ socket02 socket02
 socketcall01 socketcall01
 socketcall02 socketcall02
 socketcall03 socketcall03
-socketcall04 socketcall04
 
 socketpair01 socketpair01
 socketpair02 socketpair02
@@ -1472,6 +1473,7 @@ timerfd03 timerfd03
 timerfd_create01 timerfd_create01
 timerfd_gettime01 timerfd_gettime01
 timerfd_settime01 timerfd_settime01
+timerfd_settime02 timerfd_settime02
 
 timer_create01 timer_create01
 timer_create02 timer_create02
