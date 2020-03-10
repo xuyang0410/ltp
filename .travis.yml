@@ -45,7 +45,7 @@ matrix:
 
         # other builds
         - os: linux
-          env: DISTRO=fedora:32 MAKE_INSTALL=1
+          env: DISTRO=fedora:31 MAKE_INSTALL=1
           compiler: clang
 
         - os: linux
