@@ -9,7 +9,6 @@ yum -y install \
 	clang \
 	gcc \
 	findutils \
-	libtirpc \
-	libtirpc-devel \
+	libtirpc*$ARCH \
 	pkg-config \
 	redhat-lsb-core
