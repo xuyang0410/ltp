@@ -342,7 +342,17 @@ fpathconf01 fpathconf01
 fremovexattr01 fremovexattr01
 fremovexattr02 fremovexattr02
 
+fsconfig01 fsconfig01
+fsconfig02 fsconfig02
+
 fsmount01 fsmount01
+fsmount02 fsmount02
+
+fsopen01 fsopen01
+fsopen02 fsopen02
+
+fspick01 fspick01
+fspick02 fspick02
 
 fstat02 fstat02
 fstat02_64 fstat02_64
@@ -515,6 +525,8 @@ ioctl_ns04 ioctl_ns04
 ioctl_ns05 ioctl_ns05
 ioctl_ns06 ioctl_ns06
 ioctl_ns07 ioctl_ns07
+
+ioctl_sg01 ioctl_sg01
 
 inotify_init1_01 inotify_init1_01
 inotify_init1_02 inotify_init1_02
@@ -725,6 +737,9 @@ mount04 mount04
 mount05 mount05
 mount06 mount06
 
+move_mount01 move_mount01
+move_mount02 move_mount02
+
 move_pages01 move_pages01
 move_pages02 move_pages02
 move_pages03 move_pages03
@@ -831,6 +846,9 @@ open14 open14
 openat01 openat01
 openat02 openat02
 openat03 openat03
+
+open_tree01 open_tree01
+open_tree02 open_tree02
 
 mincore01 mincore01
 mincore02 mincore02
