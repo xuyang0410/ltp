@@ -1,19 +1,6 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (c) 2010-2018 Linux Test Project
  * Copyright (c) 2011-2015 Cyril Hrubis <chrubis@suse.cz>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef TST_SAFE_MACROS_H__
@@ -34,6 +21,7 @@
 #include <grp.h>
 
 #include "safe_macros_fn.h"
+#include "tst_cmd.h"
 
 #define SAFE_BASENAME(path) \
 	safe_basename(__FILE__, __LINE__, NULL, (path))
@@ -546,5 +534,33 @@ int safe_personality(const char *filename, unsigned int lineno,
 
 void safe_unshare(const char *file, const int lineno, int flags);
 #define SAFE_UNSHARE(flags) safe_unshare(__FILE__, __LINE__, (flags))
+
+void safe_setns(const char *file, const int lineno, int fd, int nstype);
+#define SAFE_SETNS(fd, nstype) safe_setns(__FILE__, __LINE__, (fd), (nstype));
+
+static inline void safe_cmd(const char *file, const int lineno, const char *const argv[],
+				  const char *stdout_path, const char *stderr_path)
+{
+	int rval;
+
+	switch ((rval = tst_cmd(argv, stdout_path, stderr_path,
+				TST_CMD_PASS_RETVAL | TST_CMD_TCONF_ON_MISSING))) {
+	case 0:
+		break;
+	default:
+		tst_brk(TBROK, "%s:%d: %s failed (%d)", file, lineno, argv[0], rval);
+	}
+}
+#define SAFE_CMD(argv, stdout_path, stderr_path) \
+	safe_cmd(__FILE__, __LINE__, (argv), (stdout_path), (stderr_path))
+/*
+ * SAFE_PTRACE() treats any non-zero return value as error. Don't use it
+ * for requests like PTRACE_PEEK* or PTRACE_SECCOMP_GET_FILTER which use
+ * the return value to pass arbitrary data.
+ */
+long tst_safe_ptrace(const char *file, const int lineno, int req, pid_t pid,
+	void *addr, void *data);
+#define SAFE_PTRACE(req, pid, addr, data) \
+	tst_safe_ptrace(__FILE__, __LINE__, req, pid, addr, data)
 
 #endif /* SAFE_MACROS_H__ */

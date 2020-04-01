@@ -18,6 +18,7 @@ add_key01 add_key01
 add_key02 add_key02
 add_key03 add_key03
 add_key04 add_key04
+add_key05 add_key05
 
 adjtimex01 adjtimex01
 adjtimex02 adjtimex02
@@ -31,6 +32,8 @@ alarm07 alarm07
 bind01 bind01
 bind02 bind02
 bind03 bind03
+bind04 bind04
+bind05 bind05
 
 bpf_map01 bpf_map01
 bpf_prog01 bpf_prog01
@@ -87,9 +90,11 @@ clock_getres01 clock_getres01
 clock_nanosleep01 clock_nanosleep01
 clock_nanosleep02 clock_nanosleep02
 clock_nanosleep2_01 clock_nanosleep2_01
+clock_nanosleep03 clock_nanosleep03
 
 clock_gettime01 clock_gettime01
 clock_gettime02 clock_gettime02
+clock_gettime03 clock_gettime03
 leapsec01 leapsec01
 
 clock_settime01 clock_settime01
@@ -104,6 +109,9 @@ clone06 clone06
 clone07 clone07
 clone08 clone08
 clone09 clone09
+
+clone301 clone301
+clone302 clone302
 
 close01 close01
 close02 close02
@@ -302,6 +310,8 @@ fcntl35 fcntl35
 fcntl35_64 fcntl35_64
 fcntl36 fcntl36
 fcntl36_64 fcntl36_64
+fcntl37 fcntl37
+fcntl37_64 fcntl37_64
 
 fdatasync01 fdatasync01
 fdatasync02 fdatasync02
@@ -847,6 +857,10 @@ openat01 openat01
 openat02 openat02
 openat03 openat03
 
+openat201 openat201
+openat202 openat202
+openat203 openat203
+
 open_tree01 open_tree01
 open_tree02 open_tree02
 
@@ -961,6 +975,7 @@ ptrace05 ptrace05
 # Broken test; See: testcases/kernel/syscalls/ptrace/Makefile for more details.
 #ptrace06 ptrace06
 ptrace07 ptrace07
+ptrace08 ptrace08
 
 pwrite01 pwrite01
 pwrite02 pwrite02
@@ -1164,6 +1179,7 @@ sendfile09_64 sendfile09_64
 
 sendmsg01 sendmsg01
 sendmsg02 sendmsg02
+sendmsg03 sendmsg03
 
 sendmmsg01 sendmmsg01
 
@@ -1459,6 +1475,7 @@ sysfs06 sysfs06
 
 sysinfo01 sysinfo01
 sysinfo02 sysinfo02
+sysinfo03 sysinfo03
 
 syslog01 syslog01
 syslog02 syslog02
@@ -1488,6 +1505,7 @@ times03 times03
 timerfd01 timerfd01
 timerfd02 timerfd02
 timerfd03 timerfd03
+timerfd04 timerfd04
 timerfd_create01 timerfd_create01
 timerfd_gettime01 timerfd_gettime01
 timerfd_settime01 timerfd_settime01

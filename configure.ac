@@ -75,6 +75,7 @@ AC_CHECK_HEADERS(fts.h, [have_fts=1])
 AC_SUBST(HAVE_FTS_H, $have_fts)
 
 AC_CHECK_FUNCS([ \
+    clone3 \
     copy_file_range \
     epoll_pwait \
     execveat \
@@ -88,6 +89,9 @@ AC_CHECK_FUNCS([ \
     getdents \
     getdents64 \
     io_pgetevents \
+    io_uring_setup \
+    io_uring_register \
+    io_uring_enter \
     kcmp \
     mkdirat \
     mknodat \
@@ -96,6 +100,7 @@ AC_CHECK_FUNCS([ \
     name_to_handle_at \
     open_tree \
     openat \
+    openat2 \
     pidfd_open \
     pidfd_send_signal \
     pkey_mprotect \
@@ -110,6 +115,7 @@ AC_CHECK_FUNCS([ \
     renameat2 \
     sched_getcpu \
     sendmmsg \
+    setns \
     sigpending \
     splice \
     statx \

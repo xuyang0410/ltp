@@ -3,6 +3,7 @@
  * Copyright (c) 2015-2016 Cyril Hrubis <chrubis@suse.cz>
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
@@ -446,18 +447,19 @@ static void print_test_tags(void)
 	unsigned int i;
 	const struct tst_tag *tags = tst_test->tags;
 
+	if (!tags)
+		return;
+
 	printf("\nTags\n");
 	printf("----\n");
 
-	if (tags) {
-		for (i = 0; tags[i].name; i++) {
-			if (!strcmp(tags[i].name, "CVE"))
-				printf(CVE_DB_URL "%s\n", tags[i].value);
-			else if (!strcmp(tags[i].name, "linux-git"))
-				printf(LINUX_GIT_URL "%s\n", tags[i].value);
-			else
-				printf("%s: %s\n", tags[i].name, tags[i].value);
-		}
+	for (i = 0; tags[i].name; i++) {
+		if (!strcmp(tags[i].name, "CVE"))
+			printf(CVE_DB_URL "%s\n", tags[i].value);
+		else if (!strcmp(tags[i].name, "linux-git"))
+			printf(LINUX_GIT_URL "%s\n", tags[i].value);
+		else
+			printf("%s: %s\n", tags[i].name, tags[i].value);
 	}
 
 	printf("\n");
@@ -879,6 +881,16 @@ static void do_setup(int argc, char *argv[])
 
 	if (tst_test->min_kver)
 		check_kver();
+
+	if (tst_test->needs_cmds) {
+		const char *cmd;
+		char path[PATH_MAX];
+		int i;
+
+		for (i = 0; (cmd = tst_test->needs_cmds[i]); ++i)
+			if (tst_get_path(cmd, path, sizeof(path)))
+				tst_brk(TCONF, "Couldn't find '%s' in $PATH", cmd);
+	}
 
 	if (tst_test->needs_drivers) {
 		const char *name;

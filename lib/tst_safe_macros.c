@@ -7,12 +7,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <sched.h>
+#include <sys/ptrace.h>
 #include "config.h"
 #ifdef HAVE_SYS_FANOTIFY_H
 # include <sys/fanotify.h>
 #endif
 #define TST_NO_DEFAULT_MAIN
 #include "tst_test.h"
+#include "lapi/setns.h"
 #include "tst_safe_macros.h"
 #include "lapi/personality.h"
 
@@ -201,4 +203,33 @@ void safe_unshare(const char *file, const int lineno, int flags)
 				 "unshare(%d) failed", flags);
 		}
 	}
+}
+
+void safe_setns(const char *file, const int lineno, int fd, int nstype)
+{
+	int ret;
+
+	ret = setns(fd, nstype);
+	if (ret == -1) {
+		tst_brk_(file, lineno, TBROK | TERRNO, "setns(%i, %i) failed",
+		         fd, nstype);
+	}
+}
+
+long tst_safe_ptrace(const char *file, const int lineno, int req, pid_t pid,
+	void *addr, void *data)
+{
+	long ret;
+
+	errno = 0;
+	ret = ptrace(req, pid, addr, data);
+
+	if (ret == -1) {
+		tst_brk_(file, lineno, TBROK | TERRNO, "ptrace() failed");
+	} else if (ret) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid ptrace() return value %ld", ret);
+	}
+
+	return ret;
 }

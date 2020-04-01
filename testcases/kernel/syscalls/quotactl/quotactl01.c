@@ -162,18 +162,8 @@ static struct tcase {
 static void setup(void)
 {
 	const char *const cmd[] = {"quotacheck", "-ugF", "vfsv0", MNTPOINT, NULL};
-	int ret;
 
-	ret = tst_run_cmd(cmd, NULL, NULL, 1);
-	switch (ret) {
-	case 0:
-		break;
-	case 255:
-		tst_brk(TCONF, "quotacheck binary not installed");
-		break;
-	default:
-		tst_brk(TBROK, "quotacheck exited with %i", ret);
-	}
+	SAFE_CMD(cmd, NULL, NULL);
 
 	test_id = geteuid();
 	if (access(USRPATH, F_OK) == -1)
@@ -234,5 +224,9 @@ static struct tst_test test = {
 	.dev_fs_type = "ext4",
 	.mntpoint = MNTPOINT,
 	.mnt_data = "usrquota,grpquota",
+	.needs_cmds = (const char *const []) {
+		"quotacheck",
+		NULL
+	},
 	.setup = setup,
 };

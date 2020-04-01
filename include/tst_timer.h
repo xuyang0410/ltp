@@ -1,24 +1,5 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0-or-later
  * Copyright (C) 2015 Cyril Hrubis <chrubis@suse.cz>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *
- * Further, this software is distributed without any warranty that it is
- * free of the rightful claim of any third person regarding infringement
- * or the like.  Any license provided herein, whether implied or
- * otherwise, applies only to this software file.  Patent licenses, if
- * any, provided herein do not apply to combinations of this program with
- * other software, or any other product whatsoever.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
  /*
@@ -134,6 +115,21 @@ static inline int tst_timespec_lt(struct timespec t1, struct timespec t2)
 	return t1.tv_sec < t2.tv_sec;
 }
 
+static inline struct timespec tst_timespec_normalize(struct timespec t)
+{
+	if (t.tv_nsec >= 1000000000) {
+		t.tv_sec++;
+		t.tv_nsec -= 1000000000;
+	}
+
+	if (t.tv_nsec < 0) {
+		t.tv_sec--;
+		t.tv_nsec += 1000000000;
+	}
+
+	return t;
+}
+
 /*
  * Adds us microseconds to t.
  */
@@ -143,12 +139,8 @@ static inline struct timespec tst_timespec_add_us(struct timespec t,
 	t.tv_sec += us / 1000000;
 	t.tv_nsec += (us % 1000000) * 1000;
 
-	if (t.tv_nsec >= 1000000000) {
-		t.tv_sec++;
-		t.tv_nsec -= 1000000000;
-	}
 
-	return t;
+	return tst_timespec_normalize(t);
 }
 
 /*
@@ -162,12 +154,7 @@ static inline struct timespec tst_timespec_add(struct timespec t1,
 	res.tv_sec = t1.tv_sec + t2.tv_sec;
 	res.tv_nsec = t1.tv_nsec + t2.tv_nsec;
 
-	if (res.tv_nsec >= 1000000000) {
-		res.tv_sec++;
-		res.tv_nsec -= 1000000000;
-	}
-
-	return res;
+	return tst_timespec_normalize(res);
 }
 
 /*
@@ -179,12 +166,7 @@ static inline struct timespec tst_timespec_sub_us(struct timespec t,
 	t.tv_sec -= us / 1000000;
 	t.tv_nsec -= (us % 1000000) * 1000;
 
-	if (t.tv_nsec < 0) {
-		t.tv_sec--;
-		t.tv_nsec += 1000000000;
-	}
-
-	return t;
+	return tst_timespec_normalize(t);
 }
 
 /*
