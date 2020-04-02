@@ -50,6 +50,7 @@ AC_CHECK_HEADERS([ \
     linux/if_ether.h \
     linux/if_packet.h \
     linux/keyctl.h \
+    linux/loop.h \
     linux/mempolicy.h \
     linux/module.h \
     linux/netlink.h \
