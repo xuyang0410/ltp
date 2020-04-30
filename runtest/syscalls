@@ -34,6 +34,7 @@ bind02 bind02
 bind03 bind03
 bind04 bind04
 bind05 bind05
+bind06 bind06
 
 bpf_map01 bpf_map01
 bpf_prog01 bpf_prog01
@@ -89,8 +90,8 @@ clock_adjtime02 clock_adjtime02
 clock_getres01 clock_getres01
 clock_nanosleep01 clock_nanosleep01
 clock_nanosleep02 clock_nanosleep02
-clock_nanosleep2_01 clock_nanosleep2_01
 clock_nanosleep03 clock_nanosleep03
+clock_nanosleep04 clock_nanosleep04
 
 clock_gettime01 clock_gettime01
 clock_gettime02 clock_gettime02
@@ -120,6 +121,7 @@ close08 close08
 confstr01 confstr01
 
 connect01 connect01
+connect02 connect02
 
 creat01 creat01
 creat03 creat03
@@ -524,9 +526,16 @@ ioctl03      ioctl03
 ioctl04      ioctl04
 ioctl05      ioctl05
 ioctl06      ioctl06
-
 ioctl07      ioctl07
 ioctl08      ioctl08
+
+ioctl_loop01 ioctl_loop01
+ioctl_loop02 ioctl_loop02
+ioctl_loop03 ioctl_loop03
+ioctl_loop04 ioctl_loop04
+ioctl_loop05 ioctl_loop05
+ioctl_loop06 ioctl_loop06
+ioctl_loop07 ioctl_loop07
 
 ioctl_ns01 ioctl_ns01
 ioctl_ns02 ioctl_ns02
@@ -911,6 +920,7 @@ pipe13 pipe13
 
 pipe2_01 pipe2_01
 pipe2_02 pipe2_02
+pipe2_04 pipe2_04
 
 pivot_root01 pivot_root01
 
@@ -976,6 +986,7 @@ ptrace05 ptrace05
 #ptrace06 ptrace06
 ptrace07 ptrace07
 ptrace08 ptrace08
+ptrace09 ptrace09
 
 pwrite01 pwrite01
 pwrite02 pwrite02
@@ -1314,6 +1325,7 @@ setsockopt01 setsockopt01
 setsockopt02 setsockopt02
 setsockopt03 setsockopt03
 setsockopt04 setsockopt04
+setsockopt05 setsockopt05
 
 settimeofday01 settimeofday01
 settimeofday02 settimeofday02

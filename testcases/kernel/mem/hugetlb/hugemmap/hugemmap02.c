@@ -124,17 +124,12 @@ static void test_hugemmap(void)
 
 static void setup(void)
 {
+	if (tst_hugepages == 0)
+		tst_brk(TCONF, "Not enough hugepages for testing.");
+
 	if (!Hopt)
 		Hopt = tst_get_tmpdir();
 	SAFE_MOUNT("none", Hopt, "hugetlbfs", 0, NULL);
-
-	if (nr_opt) {
-		tst_hugepages = SAFE_STRTOL(nr_opt, 1, LONG_MAX);
-		tst_request_hugepages(tst_hugepages);
-	}
-
-	if (tst_hugepages == 0)
-		tst_brk(TCONF, "No enough hugepages for testing.");
 
 	snprintf(TEMPFILE, sizeof(TEMPFILE), "%s/mmapfile%d", Hopt, getpid());
 }

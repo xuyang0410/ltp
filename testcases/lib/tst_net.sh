@@ -23,7 +23,7 @@ tst_net_parse_args()
 {
 	case $1 in
 	6) TST_IPV6=6 TST_IPVER=6;;
-	*) $TST_PARSE_ARGS_CALLER "$1" "$2";;
+	*) [ "$TST_PARSE_ARGS_CALLER" ] && $TST_PARSE_ARGS_CALLER "$1" "$2";;
 	esac
 }
 
@@ -887,6 +887,8 @@ if [ -z "$_tst_net_parse_variables" ]; then
 	tst_res_ TINFO "$IPV6_LHOST/$IPV6_LPREFIX -- $IPV6_RHOST/$IPV6_RPREFIX"
 	export _tst_net_parse_variables="yes"
 fi
+
+export TST_NET_DATAROOT="$LTPROOT/testcases/bin/datafiles"
 
 export TST_NETLOAD_CLN_REQUESTS="${TST_NETLOAD_CLN_REQUESTS:-10000}"
 export TST_NETLOAD_CLN_NUMBER="${TST_NETLOAD_CLN_NUMBER:-2}"
