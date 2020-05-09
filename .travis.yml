@@ -43,7 +43,7 @@ matrix:
           compiler: gcc
           env: DISTRO=debian:testing
 
-        # other builds
+        # other builds(trigger)
         - os: linux
           env: DISTRO=fedora:latest MAKE_INSTALL=1
           compiler: clang
