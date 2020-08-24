@@ -193,6 +193,12 @@ AC_CHECK_TYPES([struct xt_entry_match, struct xt_entry_target],,,[
 #include <linux/netfilter_ipv4/ip_tables.h>
 ])
 
+AC_CHECK_TYPES([struct sockaddr_alg, struct af_alg_iv],,,[
+#ifdef HAVE_LINUX_IF_ALG_H
+# include <linux/if_alg.h>
+#endif
+])
+
 # Tools knobs
 
 # Expect
