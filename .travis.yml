@@ -46,7 +46,10 @@ matrix:
         - os: linux
           env: DISTRO=centos:6 TREE=out
           compiler: gcc
-
+        - os: linux
+          env: DISTRO=centos:7 TREE=out
+          compiler: gcc
+ 
         - os: linux
           env: DISTRO=debian:testing
           compiler: gcc
