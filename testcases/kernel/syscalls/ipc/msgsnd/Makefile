@@ -3,10 +3,14 @@
 
 top_srcdir              ?= ../../../../..
 
+LTPLIBS = ltpnewipc
+
 ifeq ($(UCLINUX),1)
 FILTER_OUT_MAKE_TARGETS += msgsnd05 msgsnd06
 endif
 
 include $(top_srcdir)/include/mk/testcases.mk
-include $(abs_srcdir)/../Makefile2.inc
+
+LTPLDLIBS  += -lltpnewipc
+
 include $(top_srcdir)/include/mk/generic_leaf_target.mk

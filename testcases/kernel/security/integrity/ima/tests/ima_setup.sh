@@ -1,7 +1,7 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Copyright (c) 2009 IBM Corporation
-# Copyright (c) 2018-2019 Petr Vorel <pvorel@suse.cz>
+# Copyright (c) 2018-2020 Petr Vorel <pvorel@suse.cz>
 # Author: Mimi Zohar <zohar@linux.ibm.com>
 
 TST_TESTFUNC="test"
@@ -11,13 +11,89 @@ TST_CLEANUP_CALLER="$TST_CLEANUP"
 TST_CLEANUP="ima_cleanup"
 TST_NEEDS_ROOT=1
 
+# TST_NEEDS_DEVICE can be unset, therefore specify explicitly
+TST_NEEDS_TMPDIR=1
+
 . tst_test.sh
 
 SYSFS="/sys"
 UMOUNT=
 TST_FS_TYPE="ext3"
 
-check_ima_policy()
+# TODO: find support for rmd128 rmd256 rmd320 wp256 wp384 tgr128 tgr160
+compute_digest()
+{
+	local algorithm="$1"
+	local file="$2"
+	local digest
+
+	digest="$(${algorithm}sum $file 2>/dev/null | cut -f1 -d ' ')"
+	if [ -n "$digest" ]; then
+		echo "$digest"
+		return 0
+	fi
+
+	digest="$(openssl $algorithm $file 2>/dev/null | cut -f2 -d ' ')"
+	if [ -n "$digest" ]; then
+		echo "$digest"
+		return 0
+	fi
+
+	# uncommon ciphers
+	local arg="$algorithm"
+	case "$algorithm" in
+	tgr192) arg="tiger" ;;
+	wp512) arg="whirlpool" ;;
+	esac
+
+	digest="$(rdigest --$arg $file 2>/dev/null | cut -f1 -d ' ')"
+	if [ -n "$digest" ]; then
+		echo "$digest"
+		return 0
+	fi
+	return 1
+}
+
+check_policy_readable()
+{
+	if [ ! -f $IMA_POLICY ]; then
+		tst_res TINFO "missing $IMA_POLICY (reboot or CONFIG_IMA_WRITE_POLICY=y required)"
+		return 1
+	fi
+	cat $IMA_POLICY > /dev/null 2>/dev/null
+}
+
+require_policy_readable()
+{
+	if [ ! -f $IMA_POLICY ]; then
+		tst_brk TCONF "missing $IMA_POLICY (reboot or CONFIG_IMA_WRITE_POLICY=y required)"
+	fi
+	if ! check_policy_readable; then
+		tst_brk TCONF "cannot read IMA policy (CONFIG_IMA_READ_POLICY=y required)"
+	fi
+}
+
+check_ima_policy_content()
+{
+	local pattern="$1"
+	local grep_params="${2--q}"
+
+	check_policy_readable || return 1
+	grep $grep_params "$pattern" $IMA_POLICY
+}
+
+require_ima_policy_content()
+{
+	local pattern="$1"
+	local grep_params="${2--q}"
+
+	require_policy_readable
+	if ! grep $grep_params "$pattern" $IMA_POLICY; then
+		tst_brk TCONF "IMA policy does not specify '$pattern'"
+	fi
+}
+
+require_ima_policy_cmdline()
 {
 	local policy="$1"
 	local i
@@ -82,6 +158,7 @@ ima_setup()
 	[ -d "$IMA_DIR" ] || tst_brk TCONF "IMA not enabled in kernel"
 	ASCII_MEASUREMENTS="$IMA_DIR/ascii_runtime_measurements"
 	BINARY_MEASUREMENTS="$IMA_DIR/binary_runtime_measurements"
+	IMA_POLICY="$IMA_DIR/policy"
 
 	print_ima_config
 

@@ -6,13 +6,20 @@
  *		       Satoshi Fujiwara <sa-fuji@sdl.hitachi.co.jp>
  * Copyright (c) 2016 Linux Test Project
  */
+/*
+ *   test status of errors on man page
+ *   EINTR        v (function was interrupted by a signal)
+ *   EINVAL       v (invalid tv_nsec, etc.)
+ *   ENOTSUP      v (sleep not supported against the specified clock_id)
+ *   EFAULT       v (Invalid request pointer)
+ *   EFAULT       V (Invalid remain pointer when interrupted by a signal)
+ */
 
 #include <limits.h>
 
 #include "tst_safe_clocks.h"
 #include "tst_sig_proc.h"
 #include "tst_timer.h"
-#include "lapi/abisize.h"
 
 static void sighandler(int sig LTP_ATTRIBUTE_UNUSED)
 {
@@ -21,9 +28,13 @@ static void sighandler(int sig LTP_ATTRIBUTE_UNUSED)
 enum test_type {
 	NORMAL,
 	SEND_SIGINT,
+	BAD_TS_ADDR_REQ,
+	BAD_TS_ADDR_REM,
 };
 
 #define TYPE_NAME(x) .ttype = x, .desc = #x
+
+static void *bad_addr;
 
 struct test_case {
 	clockid_t clk_id;	   /* clock_* clock type parameter */
@@ -35,12 +46,6 @@ struct test_case {
 	int exp_ret;
 	int exp_err;
 };
-
-/*
- *   test status of errors on man page
- *   EINTR	      v (function was interrupted by a signal)
- *   EINVAL	     v (invalid tv_nsec, etc.)
- */
 
 static struct test_case tcase[] = {
 	{
@@ -79,6 +84,22 @@ static struct test_case tcase[] = {
 		.exp_ret = -1,
 		.exp_err = EINTR,
 	},
+	{
+		TYPE_NAME(BAD_TS_ADDR_REQ),
+		.clk_id = CLOCK_REALTIME,
+		.flags = 0,
+		.exp_ret = -1,
+		.exp_err = EFAULT,
+	},
+	{
+		TYPE_NAME(BAD_TS_ADDR_REM),
+		.clk_id = CLOCK_REALTIME,
+		.flags = 0,
+		.tv_sec = 10,
+		.tv_nsec = 0,
+		.exp_ret = -1,
+		.exp_err = EFAULT,
+	},
 };
 
 static struct tst_ts *rq;
@@ -89,18 +110,14 @@ static struct test_variants {
 	enum tst_ts_type type;
 	char *desc;
 } variants[] = {
-#if defined(TST_ABI32)
 	{ .func = libc_clock_nanosleep, .type = TST_LIBC_TIMESPEC, .desc = "vDSO or syscall with libc spec"},
-	{ .func = sys_clock_nanosleep, .type = TST_LIBC_TIMESPEC, .desc = "syscall with libc spec"},
-	{ .func = sys_clock_nanosleep, .type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with kernel spec32"},
-#endif
 
-#if defined(TST_ABI64)
-	{ .func = sys_clock_nanosleep, .type = TST_KERN_TIMESPEC, .desc = "syscall with kernel spec64"},
+#if (__NR_clock_nanosleep != __LTP__NR_INVALID_SYSCALL)
+	{ .func = sys_clock_nanosleep, .type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
 #endif
 
 #if (__NR_clock_nanosleep_time64 != __LTP__NR_INVALID_SYSCALL)
-	{ .func = sys_clock_nanosleep64, .type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec64"},
+	{ .func = sys_clock_nanosleep64, .type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
 #endif
 };
 
@@ -109,6 +126,7 @@ void setup(void)
 	rq->type = variants[tst_variant].type;
 	tst_res(TINFO, "Testing variant: %s", variants[tst_variant].desc);
 	SAFE_SIGNAL(SIGINT, sighandler);
+	bad_addr = tst_get_bad_addr(NULL);
 }
 
 static void do_test(unsigned int i)
@@ -116,19 +134,30 @@ static void do_test(unsigned int i)
 	struct test_variants *tv = &variants[tst_variant];
 	struct test_case *tc = &tcase[i];
 	pid_t pid = 0;
+	void *request, *remain;
 
 	memset(rm, 0, sizeof(*rm));
 	rm->type = rq->type;
 
 	tst_res(TINFO, "case %s", tc->desc);
 
-	if (tc->ttype == SEND_SIGINT)
+	if (tc->ttype == SEND_SIGINT || tc->ttype == BAD_TS_ADDR_REM)
 		pid = create_sig_proc(SIGINT, 40, 500000);
 
 	tst_ts_set_sec(rq, tc->tv_sec);
 	tst_ts_set_nsec(rq, tc->tv_nsec);
 
-	TEST(tv->func(tc->clk_id, tc->flags, tst_ts_get(rq), tst_ts_get(rm)));
+	if (tc->ttype == BAD_TS_ADDR_REQ)
+		request = bad_addr;
+	else
+		request = tst_ts_get(rq);
+
+	if (tc->ttype == BAD_TS_ADDR_REM)
+		remain = bad_addr;
+	else
+		remain = tst_ts_get(rm);
+
+	TEST(tv->func(tc->clk_id, tc->flags, request, remain));
 
 	if (tv->func == libc_clock_nanosleep) {
 		/*

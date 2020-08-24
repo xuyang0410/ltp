@@ -3,6 +3,10 @@
 
 top_srcdir              ?= ../../../../..
 
+LTPLIBS = ltpipc
+
 include $(top_srcdir)/include/mk/testcases.mk
-include $(abs_srcdir)/../Makefile.inc
+
+LTPLDLIBS  = -lltpipc
+
 include $(top_srcdir)/include/mk/generic_leaf_target.mk

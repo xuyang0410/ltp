@@ -68,7 +68,7 @@ extern unsigned int tst_max_futexes;
 
 #define IPC_ENV_VAR "LTP_IPC_PATH"
 
-static char ipc_path[1024];
+static char ipc_path[1064];
 const char *tst_ipc_path = ipc_path;
 
 static char shm_path[1024];
@@ -316,6 +316,7 @@ void tst_vbrk_(const char *file, const int lineno, int ttype,
                const char *fmt, va_list va)
 {
 	print_result(file, lineno, ttype, fmt, va);
+	update_results(TTYPE_RESULT(ttype));
 
 	/*
 	 * The getpid implementation in some C library versions may cause cloned
@@ -362,7 +363,7 @@ static void check_child_status(pid_t pid, int status)
 	}
 
 	if (!(WIFEXITED(status)))
-		tst_brk(TBROK, "Child (%i) exited abnormaly", pid);
+		tst_brk(TBROK, "Child (%i) exited abnormally", pid);
 
 	ret = WEXITSTATUS(status);
 	switch (ret) {
@@ -672,7 +673,7 @@ static void print_failure_hints(void)
 				hint_printed = 1;
 				printf("\n");
 				print_colored("HINT: ");
-				printf("You _MAY_ be vunerable to CVE(s), see:\n\n");
+				printf("You _MAY_ be vulnerable to CVE(s), see:\n\n");
 			}
 
 			printf(CVE_DB_URL "%s\n", tags[i].value);
@@ -789,7 +790,7 @@ static void assert_test_fn(void)
 		cnt++;
 
 	if (!cnt)
-		tst_brk(TBROK, "No test function speficied");
+		tst_brk(TBROK, "No test function specified");
 
 	if (cnt != 1)
 		tst_brk(TBROK, "You can define only one test function");
@@ -1000,6 +1001,9 @@ static void do_setup(int argc, char *argv[])
 
 	if (tst_test->restore_wallclock)
 		tst_wallclock_save();
+
+	if (tst_test->taint_check)
+		tst_taint_init(tst_test->taint_check);
 }
 
 static void do_test_setup(void)
@@ -1278,6 +1282,9 @@ static int fork_testrun(void)
 	alarm(0);
 	SAFE_SIGNAL(SIGINT, SIG_DFL);
 
+	if (tst_test->taint_check && tst_taint_check())
+		tst_brk(TBROK, "Kernel is now tainted.");
+
 	if (WIFEXITED(status) && WEXITSTATUS(status))
 		return WEXITSTATUS(status);
 
@@ -1316,10 +1323,8 @@ static int run_tcases_per_fs(void)
 			mntpoint_mounted = 0;
 		}
 
-		if (ret == TCONF) {
-			update_results(ret);
+		if (ret == TCONF)
 			continue;
-		}
 
 		if (ret == 0)
 			continue;

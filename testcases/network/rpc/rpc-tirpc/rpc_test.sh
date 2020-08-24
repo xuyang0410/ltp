@@ -37,7 +37,8 @@ rpc_parse_args()
 {
 	case "$1" in
 		c) CLIENT="$OPTARG" ;;
-		e) CLIENT_EXTRA_OPTS="$OPTARG" ;;
+		e) tst_check_cmds sed
+		   CLIENT_EXTRA_OPTS="$(echo $OPTARG | sed 's/,/ /')" ;;
 		s) SERVER="$OPTARG" ;;
 	esac
 }
@@ -53,13 +54,21 @@ setup()
 		fi
 	fi
 
-	[ -n "$CLIENT" ] || tst_brk "client program not set"
+	[ -n "$CLIENT" ] || tst_brk TBROK "client program not set"
+	tst_check_cmds $CLIENT $SERVER || tst_brk TCONF "LTP compiled without TI-RPC support?"
+
+	tst_cmd_available ldd which || return
+	if ldd $(which $CLIENT) |grep -q /libtirpc\.so; then
+		tst_res TINFO "using libtirpc: yes"
+	else
+		tst_res TINFO "using libtirpc: no (probably using glibc)"
+	fi
 }
 
 cleanup()
 {
-	if [ ! -z "$SERVER" ]; then
-		pkill -9 $SERVER > /dev/null 2>&1
+	if [ "$SERVER_STARTED" ]; then
+		pkill -13 -x $SERVER
 		$CLEANER $PROGNUMNOSVC
 	fi
 }
@@ -70,6 +79,7 @@ do_test()
 
 	if [ -n "$SERVER" ]; then
 		$SERVER $PROGNUMNOSVC &
+		SERVER_STARTED=1
 
 		for i in $(seq 1 10); do
 			rpcinfo -p localhost | grep -q $PROGNUMNOSVC && break

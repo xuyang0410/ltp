@@ -15,10 +15,9 @@
  *  timerfd: Protect the might cancel mechanism proper
  */
 #include <unistd.h>
+#include "tst_timer.h"
 #include "tst_safe_timerfd.h"
-#include "tst_test.h"
 #include "tst_fuzzy_sync.h"
-#include "tst_taint.h"
 
 #define TIMERFD_FLAGS "timerfd_settime(TFD_TIMER_ABSTIME | TFD_TIMER_CANCEL_ON_SET)"
 
@@ -27,12 +26,30 @@
 #endif
 
 static int fd = -1;
-static struct itimerspec its;
+static struct tst_its its;
 static struct tst_fzsync_pair fzsync_pair;
+
+static struct test_variants {
+	int (*tfd_settime)(int fd, int flags, void *new_value, void *old_value);
+	enum tst_ts_type type;
+	char *desc;
+} variants[] = {
+#if (__NR_timerfd_settime != __LTP__NR_INVALID_SYSCALL)
+	{ .tfd_settime = sys_timerfd_settime, .type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
+#endif
+
+#if (__NR_timerfd_settime64 != __LTP__NR_INVALID_SYSCALL)
+	{ .tfd_settime = sys_timerfd_settime64, .type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
+#endif
+};
 
 static void setup(void)
 {
-	tst_taint_init(TST_TAINT_W | TST_TAINT_D);
+	struct test_variants *tv = &variants[tst_variant];
+
+	tst_res(TINFO, "Testing variant: %s", tv->desc);
+	its.type = tv->type;
+
 	fd = SAFE_TIMERFD_CREATE(CLOCK_REALTIME, 0);
 
 	fzsync_pair.exec_loops = 1000000;
@@ -48,7 +65,9 @@ static void cleanup(void)
 
 static int punch_clock(int flags)
 {
-	return timerfd_settime(fd, flags, &its, NULL);
+	return variants[tst_variant].tfd_settime(fd, flags, tst_its_get(&its),
+						 NULL);
+
 }
 
 static void *thread_run(void *arg)
@@ -91,9 +110,11 @@ static void run(void)
 
 static struct tst_test test = {
 	.test_all = run,
+	.test_variants = ARRAY_SIZE(variants),
 	.setup = setup,
 	.cleanup = cleanup,
 	.min_kver = "2.6.25",
+	.taint_check = TST_TAINT_W | TST_TAINT_D,
 	.tags = (const struct tst_tag[]) {
 		{"linux-git", "1e38da300e1e"},
 		{"CVE", "2017-10661"},

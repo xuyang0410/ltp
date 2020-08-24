@@ -131,60 +131,64 @@ init_ltp_netspace()
 }
 
 # Run command on remote host.
+# tst_rhost_run -c CMD [-b] [-s] [-u USER]
 # Options:
 # -b run in background
+# -c CMD specify command to run (this must be binary, not shell builtin/function)
 # -s safe option, if something goes wrong, will exit with TBROK
-# -c specify command to run (this must be binary, not shell builtin/function)
+# -u USER for ssh (default root)
 # RETURN: 0 on success, 1 on failure
+# TST_NET_RHOST_RUN_DEBUG=1 enables debugging
 tst_rhost_run()
 {
-	local pre_cmd=
 	local post_cmd=' || echo RTERR'
-	local out=
 	local user="root"
-	local cmd=
-	local safe=0
+	local ret=0
+	local cmd out output pre_cmd rcmd sh_cmd safe use
 
-	OPTIND=0
-
-	while getopts :bsc:u: opt; do
+	local OPTIND
+	while getopts :bc:su: opt; do
 		case "$opt" in
-		b) [ "$TST_USE_NETNS" ] && pre_cmd= || pre_cmd="nohup"
+		b) [ "${TST_USE_NETNS:-}" ] && pre_cmd= || pre_cmd="nohup"
 		   post_cmd=" > /dev/null 2>&1 &"
 		   out="1> /dev/null"
 		;;
-		s) safe=1 ;;
 		c) cmd="$OPTARG" ;;
+		s) safe=1 ;;
 		u) user="$OPTARG" ;;
 		*) tst_brk_ TBROK "tst_rhost_run: unknown option: $OPTARG" ;;
 		esac
 	done
 
-	OPTIND=0
-
 	if [ -z "$cmd" ]; then
-		[ "$safe" -eq 1 ] && \
+		[ "$safe" ] && \
 			tst_brk_ TBROK "tst_rhost_run: command not defined"
 		tst_res_ TWARN "tst_rhost_run: command not defined"
 		return 1
 	fi
 
-	local output=
-	local ret=0
-	if [ -n "${TST_USE_SSH:-}" ]; then
-		output=`ssh -n -q $user@$RHOST "sh -c \
-			'$pre_cmd $cmd $post_cmd'" $out 2>&1 || echo 'RTERR'`
-	elif [ -n "$TST_USE_NETNS" ]; then
-		output=`$LTP_NETNS sh -c \
-			"$pre_cmd $cmd $post_cmd" $out 2>&1 || echo 'RTERR'`
+	sh_cmd="$pre_cmd $cmd $post_cmd"
+
+	if [ -n "${TST_USE_NETNS:-}" ]; then
+		use="NETNS"
+		rcmd="$LTP_NETNS sh -c"
 	else
-		output=`rsh -n -l $user $RHOST "sh -c \
-			'$pre_cmd $cmd $post_cmd'" $out 2>&1 || echo 'RTERR'`
+		tst_require_cmds ssh
+		use="SSH"
+		rcmd="ssh -nq $user@$RHOST"
 	fi
+
+	if [ "$TST_NET_RHOST_RUN_DEBUG" = 1 ]; then
+		tst_res_ TINFO "tst_rhost_run: cmd: $cmd"
+		tst_res_ TINFO "$use: $rcmd \"$sh_cmd\" $out 2>&1"
+	fi
+
+	output=$($rcmd "$sh_cmd" $out 2>&1 || echo 'RTERR')
+
 	echo "$output" | grep -q 'RTERR$' && ret=1
 	if [ $ret -eq 1 ]; then
 		output=$(echo "$output" | sed 's/RTERR//')
-		[ "$safe" -eq 1 ] && \
+		[ "$safe" ] && \
 			tst_brk_ TBROK "'$cmd' failed on '$RHOST': '$output'"
 	fi
 
@@ -250,22 +254,32 @@ tst_net_run()
 
 EXPECT_RHOST_PASS()
 {
-	tst_rhost_run -c "$*" > /dev/null
+	local log="$TMPDIR/log.$$"
+
+	tst_rhost_run -c "$*" > $log
 	if [ $? -eq 0 ]; then
 		tst_res_ TPASS "$* passed as expected"
 	else
 		tst_res_ TFAIL "$* failed unexpectedly"
+		cat $log
 	fi
+
+	rm -f $log
 }
 
 EXPECT_RHOST_FAIL()
 {
-	tst_rhost_run -c "$* 2> /dev/null"
+	local log="$TMPDIR/log.$$"
+
+	tst_rhost_run -c "$*" > $log
 	if [ $? -ne 0 ]; then
 		tst_res_ TPASS "$* failed as expected"
 	else
 		tst_res_ TFAIL "$* passed unexpectedly"
+		cat $log
 	fi
+
+	rm -f $log
 }
 
 # Get test interface names for local/remote host.
@@ -835,7 +849,7 @@ tst_default_max_pkt()
 export RHOST="$RHOST"
 export PASSWD="${PASSWD:-}"
 # Don't use it in new tests, use tst_rhost_run() from tst_net.sh instead.
-export LTP_RSH="${LTP_RSH:-rsh -n}"
+export LTP_RSH="${LTP_RSH:-ssh -nq}"
 
 # Test Links
 # IPV{4,6}_{L,R}HOST can be set with or without prefix (e.g. IP or IP/prefix),
@@ -913,6 +927,8 @@ export UPLOAD_BIGFILESIZE="${UPLOAD_BIGFILESIZE:-2147483647}"
 export UPLOAD_REGFILESIZE="${UPLOAD_REGFILESIZE:-1024}"
 export MCASTNUM_NORMAL="${MCASTNUM_NORMAL:-20}"
 export MCASTNUM_HEAVY="${MCASTNUM_HEAVY:-4000}"
+export ROUTE_CHANGE_IP="${ROUTE_CHANGE_IP:-100}"
+export ROUTE_CHANGE_NETLINK="${ROUTE_CHANGE_NETLINK:-10000}"
 
 # Warning: make sure to set valid interface names and IP addresses below.
 # Set names for test interfaces, e.g. "eth0 eth1"

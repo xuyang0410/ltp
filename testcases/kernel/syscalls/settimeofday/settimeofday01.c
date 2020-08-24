@@ -16,14 +16,12 @@
 #define ACCEPTABLE_DELTA 500
 #define USEC_PER_SEC    1000000L
 
-struct timeval tv_saved;
-
 static void verify_settimeofday(void)
 {
 	suseconds_t delta;
 	struct timeval tv1, tv2;
 
-	if (tst_syscall(__NR_gettimeofday, &tv1, NULL) == -1)
+	if (gettimeofday(&tv1, NULL) == -1)
 		tst_brk(TBROK | TERRNO, "gettimeofday(&tv1, NULL) failed");
 
 	tv1.tv_sec += VAL_SEC;
@@ -37,7 +35,7 @@ static void verify_settimeofday(void)
 		return;
 	}
 
-	if (tst_syscall(__NR_gettimeofday, &tv2, NULL) == -1)
+	if (gettimeofday(&tv2, NULL) == -1)
 		tst_brk(TBROK | TERRNO, "gettimeofday(&tv2, NULL) failed");
 
 	if (tv2.tv_sec > tv1.tv_sec) {
@@ -56,21 +54,8 @@ static void verify_settimeofday(void)
 		tst_res(TFAIL, "settimeofday() fail");
 }
 
-static void setup(void)
-{
-	if (tst_syscall(__NR_gettimeofday, &tv_saved, NULL) == -1)
-		tst_brk(TBROK | TERRNO, "gettimeofday(&tv_saved, NULL) failed");
-}
-
-static void cleanup(void)
-{
-	if ((settimeofday(&tv_saved, NULL)) == -1)
-		tst_brk(TBROK | TERRNO, "settimeofday(&tv_saved, NULL) failed");
-}
-
 static struct tst_test test = {
-	.setup = setup,
-	.cleanup = cleanup,
+	.restore_wallclock = 1,
 	.test_all = verify_settimeofday,
 	.needs_root = 1,
 };

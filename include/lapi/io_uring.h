@@ -20,6 +20,10 @@
 
 #ifndef IOSQE_FIXED_FILE
 
+#ifndef __kernel_rwf_t
+typedef int __kernel_rwf_t;
+#endif
+
 /*
  * IO submission data structure (Submission Queue Entry)
  */
@@ -279,5 +283,17 @@ int io_uring_enter(int fd, unsigned int to_submit, unsigned int min_complete,
 			flags, sig, _NSIG / 8);
 }
 #endif /* HAVE_IO_URING_ENTER */
+
+void io_uring_setup_supported_by_kernel(void)
+{
+	if ((tst_kvercmp(5, 1, 0)) < 0) {
+		TEST(syscall(__NR_io_uring_setup, NULL, 0));
+		if (TST_RET != -1)
+			SAFE_CLOSE(TST_RET);
+		else if (TST_ERR == ENOSYS)
+			tst_brk(TCONF,
+				"Test not supported on kernel version < v5.1");
+	}
+}
 
 #endif /* IO_URING_H__ */

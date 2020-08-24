@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-2.0-or-later
-# Copyright (c) Linux Test Project, 2014-2019
+# Copyright (c) Linux Test Project, 2014-2020
 # Author: Cyril Hrubis <chrubis@suse.cz>
 #
 # LTP test library for shell.
@@ -102,9 +102,9 @@ tst_res()
 
 	_tst_inc_res "$res"
 
-	printf "$TST_ID $TST_COUNT "
-	tst_print_colored $res "$res: "
-	echo "$@"
+	printf "$TST_ID $TST_COUNT " >&2
+	tst_print_colored $res "$res: " >&2
+	echo "$@" >&2
 }
 
 tst_brk()
@@ -207,7 +207,7 @@ TST_RETRY_FN_EXP_BACKOFF()
 	fi
 
 	while true; do
-		$tst_fun
+		eval "$tst_fun"
 		if [ "$?" = "$tst_exp" ]; then
 			break
 		fi
@@ -506,7 +506,7 @@ tst_run()
 			NEEDS_DRIVERS|FS_TYPE|MNTPOINT|MNT_PARAMS);;
 			IPV6|IPVER|TEST_DATA|TEST_DATA_IFS);;
 			RETRY_FUNC|RETRY_FN_EXP_BACKOFF|TIMEOUT);;
-			NET_DATAROOT|NET_MAX_PKT);;
+			NET_DATAROOT|NET_MAX_PKT|NET_RHOST_RUN_DEBUG);;
 			*) tst_res TWARN "Reserved variable TST_$_tst_i used!";;
 			esac
 		done
@@ -550,7 +550,7 @@ tst_run()
 
 	_tst_setup_timer
 
-	[ "$TST_NEEDS_DEVICE" = 1 ] && TST_TMPDIR=1
+	[ "$TST_NEEDS_DEVICE" = 1 ] && TST_NEEDS_TMPDIR=1
 
 	if [ "$TST_NEEDS_TMPDIR" = 1 ]; then
 		if [ -z "$TMPDIR" ]; then

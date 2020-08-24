@@ -55,6 +55,7 @@ AC_CHECK_HEADERS([ \
     linux/netlink.h \
     linux/seccomp.h \
     linux/securebits.h \
+    linux/tty.h \
     linux/types.h \
     linux/userfaultfd.h \
     mm.h \
@@ -86,6 +87,7 @@ AC_CHECK_FUNCS([ \
     fsopen \
     fspick \
     fstatat \
+    getauxval \
     getdents \
     getdents64 \
     io_pgetevents \
@@ -149,6 +151,11 @@ AC_CHECK_TYPES([struct file_dedupe_range],,,[#include <linux/fs.h>])
 AC_CHECK_TYPES([struct fs_quota_statv],,,[#include <xfs/xqm.h>])
 AC_CHECK_TYPES([struct if_nextdqblk],,,[#include <linux/quota.h>])
 AC_CHECK_TYPES([struct iovec],,,[#include <sys/uio.h>])
+AC_CHECK_TYPES([struct ipc64_perm],,,[#include <sys/ipcbuf.h>])
+AC_CHECK_TYPES([struct loop_config],,,[#include <linux/loop.h>])
+AC_CHECK_TYPES([struct semid64_ds],,,[#include <sys/sem.h>])
+AC_CHECK_TYPES([struct shmid64_ds],,,[#include <sys/shmbuf.h>])
+AC_CHECK_TYPES([struct msqid64_ds],,,[#include <sys/msgbuf.h>])
 
 AC_CHECK_TYPES([struct mmsghdr],,,[
 #define _GNU_SOURCE
@@ -300,6 +307,7 @@ LTP_CHECK_CRYPTO
 LTP_CHECK_FORTIFY_SOURCE
 LTP_CHECK_KERNEL_DEVEL
 LTP_CHECK_KEYUTILS_SUPPORT
+LTP_CHECK_LIBMNL
 LTP_CHECK_LINUX_PTRACE
 LTP_CHECK_LINUXRANDOM
 LTP_CHECK_MREMAP_FIXED

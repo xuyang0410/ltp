@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2017-2018 Petr Vorel <pvorel@suse.cz>
+# Copyright (c) 2017-2020 Petr Vorel <pvorel@suse.cz>
 # Script for travis builds.
 #
 # TODO: Implement comparison of installed files. List of installed files can
@@ -9,7 +9,7 @@
 
 set -e
 
-CFLAGS="${CFLAGS:--Werror=implicit-function-declaration -fno-common}"
+CFLAGS="${CFLAGS:--Wformat -Werror=format-security -Werror=implicit-function-declaration -Werror=return-type -fno-common}"
 CC="${CC:-gcc}"
 
 DEFAULT_PREFIX="$HOME/ltp-install"
@@ -36,8 +36,10 @@ build_native()
 build_cross()
 {
 	local host="${CC%-gcc}"
-	[ -n "$host" ] || \
-		{ echo "Missing CC variable, pass it with -c option." >&2; exit 1; }
+	if [ "$host" = "gcc" ]; then
+		echo "Invalid CC variable for cross compilation: $CC (clang not supported)" >&2
+		exit 1
+	fi
 
 	echo "===== cross-compile ${host} ${1}-tree build into $PREFIX ====="
 	build $1 $2 "--host=$host" CROSS_COMPILE="${host}-"

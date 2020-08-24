@@ -130,6 +130,90 @@ int safe_sigaction(const char *file, const int lineno,
 	return rval;
 }
 
+void safe_sigaddset(const char *file, const int lineno,
+                    sigset_t *sigs, int signo)
+{
+	int rval;
+
+	rval = sigaddset(sigs, signo);
+	if (rval == -1) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+		         "sigaddset() %s (%i) failed",
+			 tst_strsig(signo), signo);
+	}
+}
+
+void safe_sigdelset(const char *file, const int lineno,
+                    sigset_t *sigs, int signo)
+{
+	int rval;
+
+	rval = sigdelset(sigs, signo);
+	if (rval == -1) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+		         "sigdelset() %s (%i) failed",
+			 tst_strsig(signo), signo);
+	}
+}
+
+void safe_sigemptyset(const char *file, const int lineno,
+                      sigset_t *sigs)
+{
+	int rval;
+
+	rval = sigemptyset(sigs);
+	if (rval == -1)
+		tst_brk_(file, lineno, TBROK | TERRNO, "sigemptyset() failed");
+}
+
+void safe_sigfillset(const char *file, const int lineno,
+		     sigset_t *sigs)
+{
+	int rval;
+
+	rval = sigfillset(sigs);
+	if (rval == -1)
+		tst_brk_(file, lineno, TBROK | TERRNO, "sigfillset() failed");
+}
+
+static const char *strhow(int how)
+{
+	switch (how) {
+	case SIG_BLOCK:
+		return "SIG_BLOCK";
+	case SIG_UNBLOCK:
+		return "SIG_UNBLOCK";
+	case SIG_SETMASK:
+		return "SIG_SETMASK";
+	default:
+		return "???";
+	}
+}
+
+void safe_sigprocmask(const char *file, const int lineno,
+                      int how, sigset_t *set, sigset_t *oldset)
+{
+	int rval;
+
+	rval = sigprocmask(how, set, oldset);
+	if (rval == -1) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+		         "sigprocmask(%s, %p, %p)", strhow(how), set, oldset);
+	}
+}
+
+void safe_sigwait(const char *file, const int lineno,
+                  sigset_t *set, int *sig)
+{
+	int rval;
+
+	rval = sigwait(set, sig);
+	if (rval != 0) {
+		errno = rval;
+		tst_brk_(file, lineno, TBROK, "sigwait(%p, %p)", set, sig);
+	}
+}
+
 struct group *safe_getgrnam(const char *file, const int lineno,
 			    const char *name)
 {

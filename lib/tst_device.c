@@ -31,6 +31,7 @@
 #include <linux/loop.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <sys/sysmacros.h>
 #include "lapi/syscalls.h"
 #include "test.h"
 #include "safe_macros.h"
@@ -186,9 +187,36 @@ int tst_attach_device(const char *dev, const char *file)
 	return 0;
 }
 
+int tst_detach_device_by_fd(const char *dev, int dev_fd)
+{
+	int ret, i;
+
+	/* keep trying to clear LOOPDEV until we get ENXIO, a quick succession
+	 * of attach/detach might not give udev enough time to complete */
+	for (i = 0; i < 40; i++) {
+		ret = ioctl(dev_fd, LOOP_CLR_FD, 0);
+
+		if (ret && (errno == ENXIO))
+			return 0;
+
+		if (ret && (errno != EBUSY)) {
+			tst_resm(TWARN,
+				 "ioctl(%s, LOOP_CLR_FD, 0) unexpectedly failed with: %s",
+				 dev, tst_strerrno(errno));
+			return 1;
+		}
+
+		usleep(50000);
+	}
+
+	tst_resm(TWARN,
+		"ioctl(%s, LOOP_CLR_FD, 0) no ENXIO for too long", dev);
+	return 1;
+}
+
 int tst_detach_device(const char *dev)
 {
-	int dev_fd, ret, i;
+	int dev_fd, ret;
 
 	dev_fd = open(dev, O_RDONLY);
 	if (dev_fd < 0) {
@@ -196,31 +224,9 @@ int tst_detach_device(const char *dev)
 		return 1;
 	}
 
-	/* keep trying to clear LOOPDEV until we get ENXIO, a quick succession
-	 * of attach/detach might not give udev enough time to complete */
-	for (i = 0; i < 40; i++) {
-		ret = ioctl(dev_fd, LOOP_CLR_FD, 0);
-
-		if (ret && (errno == ENXIO)) {
-			close(dev_fd);
-			return 0;
-		}
-
-		if (ret && (errno != EBUSY)) {
-			tst_resm(TWARN,
-				 "ioctl(%s, LOOP_CLR_FD, 0) unexpectedly failed with: %s",
-				 dev, tst_strerrno(errno));
-			close(dev_fd);
-			return 1;
-		}
-
-		usleep(50000);
-	}
-
+	ret = tst_detach_device_by_fd(dev, dev_fd);
 	close(dev_fd);
-	tst_resm(TWARN,
-		"ioctl(%s, LOOP_CLR_FD, 0) no ENXIO for too long", dev);
-	return 1;
+	return ret;
 }
 
 int tst_dev_sync(int fd)
@@ -228,10 +234,28 @@ int tst_dev_sync(int fd)
 	return syscall(__NR_syncfs, fd);
 }
 
+const char *tst_acquire_loop_device(unsigned int size, const char *filename)
+{
+	unsigned int acq_dev_size = MAX(size, DEV_SIZE_MB);
+
+	if (tst_prealloc_file(filename, 1024 * 1024, acq_dev_size)) {
+		tst_resm(TWARN | TERRNO, "Failed to create %s", filename);
+		return NULL;
+	}
+
+	if (tst_find_free_loopdev(dev_path, sizeof(dev_path)) == -1)
+		return NULL;
+
+	if (tst_attach_device(dev_path, filename))
+		return NULL;
+
+	return dev_path;
+}
+
 const char *tst_acquire_device__(unsigned int size)
 {
 	int fd;
-	char *dev;
+	const char *dev;
 	struct stat st;
 	unsigned int acq_dev_size;
 	uint64_t ltp_dev_size;
@@ -282,20 +306,12 @@ const char *tst_acquire_device__(unsigned int size)
 				ltp_dev_size, acq_dev_size);
 	}
 
-	if (tst_fill_file(DEV_FILE, 0, 1024 * 1024, acq_dev_size)) {
-		tst_resm(TWARN | TERRNO, "Failed to create " DEV_FILE);
-		return NULL;
-	}
+	dev = tst_acquire_loop_device(acq_dev_size, DEV_FILE);
 
-	if (tst_find_free_loopdev(dev_path, sizeof(dev_path)) == -1)
-		return NULL;
+	if (dev)
+		device_acquired = 1;
 
-	if (tst_attach_device(dev_path, DEV_FILE))
-		return NULL;
-
-	device_acquired = 1;
-
-	return dev_path;
+	return dev;
 }
 
 const char *tst_acquire_device_(void (cleanup_fn)(void), unsigned int size)
@@ -477,4 +493,39 @@ unsigned long tst_dev_bytes_written(const char *dev)
 	prev_dev_sec_write = dev_sec_write;
 
 	return dev_bytes_written;
+}
+
+void tst_find_backing_dev(const char *path, char *dev)
+{
+	char fmt[20];
+	struct stat buf;
+	FILE *file;
+	char line[PATH_MAX];
+	char *pre = NULL;
+	char *next = NULL;
+
+	if (stat(path, &buf) < 0)
+		tst_brkm(TWARN | TERRNO, NULL, "stat() failed");
+
+	snprintf(fmt, sizeof(fmt), "%u:%u", major(buf.st_dev), minor(buf.st_dev));
+	file = SAFE_FOPEN(NULL, "/proc/self/mountinfo", "r");
+
+	while (fgets(line, sizeof(line), file)) {
+		if (strstr(line, fmt) != NULL) {
+			pre = strstr(line, " - ");
+			pre = strtok_r(pre, " ", &next);
+			pre = strtok_r(NULL, " ", &next);
+			pre = strtok_r(NULL, " ", &next);
+			strcpy(dev, pre);
+			break;
+		}
+	}
+
+	SAFE_FCLOSE(NULL, file);
+
+	if (stat(dev, &buf) < 0)
+		 tst_brkm(TWARN | TERRNO, NULL, "stat(%s) failed", dev);
+
+	if (S_ISBLK(buf.st_mode) != 1)
+		tst_brkm(TCONF, NULL, "dev(%s) isn't a block dev", dev);
 }
