@@ -17,6 +17,7 @@ msgget05 msgget05
 
 msgrcv01 msgrcv01
 msgrcv02 msgrcv02
+msgrcv03 msgrcv03
 msgrcv05 msgrcv05
 msgrcv06 msgrcv06
 msgrcv07 msgrcv07
@@ -55,6 +56,8 @@ shmctl03 shmctl03
 shmctl04 shmctl04
 shmctl05 shmctl05
 shmctl06 shmctl06
+shmctl07 shmctl07
+shmctl08 shmctl08
 
 shmdt01 shmdt01
 shmdt02 shmdt02

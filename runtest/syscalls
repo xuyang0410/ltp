@@ -316,6 +316,8 @@ fcntl36 fcntl36
 fcntl36_64 fcntl36_64
 fcntl37 fcntl37
 fcntl37_64 fcntl37_64
+fcntl38 fcntl38
+fcntl38_64 fcntl38_64
 
 fdatasync01 fdatasync01
 fdatasync02 fdatasync02
@@ -562,6 +564,7 @@ inotify06 inotify06
 inotify07 inotify07
 inotify08 inotify08
 inotify09 inotify09
+inotify10 inotify10
 
 fanotify01 fanotify01
 fanotify02 fanotify02
@@ -747,6 +750,7 @@ mmap14 mmap14
 mmap15 mmap15
 mmap16 mmap16
 mmap17 mmap17
+mmap18 mmap18
 
 modify_ldt01 modify_ldt01
 modify_ldt02 modify_ldt02
@@ -813,6 +817,7 @@ msgget05 msgget05
 
 msgrcv01 msgrcv01
 msgrcv02 msgrcv02
+msgrcv03 msgrcv03
 msgrcv05 msgrcv05
 msgrcv06 msgrcv06
 msgrcv07 msgrcv07
@@ -985,6 +990,7 @@ pselect03 pselect03
 pselect03_64 pselect03_64
 
 ptrace01 ptrace01
+ptrace02 ptrace02
 ptrace03 ptrace03
 ptrace04 ptrace04
 ptrace05 ptrace05
@@ -993,6 +999,7 @@ ptrace05 ptrace05
 ptrace07 ptrace07
 ptrace08 ptrace08
 ptrace09 ptrace09
+ptrace10 ptrace10
 
 pwrite01 pwrite01
 pwrite02 pwrite02
@@ -1152,7 +1159,6 @@ sched_getattr02 sched_getattr02
 select01 select01
 select02 select02
 select03 select03
-select04 select04
 
 semctl01 semctl01
 semctl02 semctl02
@@ -1174,6 +1180,7 @@ semop02 semop02
 semop03 semop03
 
 send01 send01
+send02 send02
 
 sendfile02 sendfile02
 sendfile02_64 sendfile02_64
@@ -1201,6 +1208,7 @@ sendmmsg01 sendmmsg01
 
 sendto01 sendto01
 sendto02 sendto02
+sendto03 sendto03
 
 set_mempolicy01 set_mempolicy01
 set_mempolicy02 set_mempolicy02
@@ -1358,6 +1366,8 @@ shmctl03 shmctl03
 shmctl04 shmctl04
 shmctl05 shmctl05
 shmctl06 shmctl06
+shmctl07 shmctl07
+shmctl08 shmctl08
 
 shmdt01 shmdt01
 shmdt02 shmdt02
@@ -1469,8 +1479,6 @@ symlink05 symlink05
 symlinkat01 symlinkat01
 
 sync01 sync01
-sync02 sync02
-sync03 sync03
 
 syncfs01 syncfs01
 
@@ -1543,6 +1551,7 @@ timer_gettime01 timer_gettime01
 
 timer_settime01 timer_settime01
 timer_settime02 timer_settime02
+timer_settime03 timer_settime03
 
 tkill01 tkill01
 tkill02 tkill02
@@ -1564,7 +1573,6 @@ umask01 umask01
 
 uname01 uname01
 uname02 uname02
-uname03 uname03
 uname04 uname04
 
 unlink01 symlink01 -T unlink01

@@ -350,7 +350,7 @@ tst_require_cmds()
 tst_check_cmds()
 {
 	local cmd
-	for cmd; do
+	for cmd in $*; do
 		if ! tst_cmd_available $cmd; then
 			tst_res TCONF "'$cmd' not found"
 			return 1
@@ -506,7 +506,7 @@ tst_run()
 			NEEDS_DRIVERS|FS_TYPE|MNTPOINT|MNT_PARAMS);;
 			IPV6|IPVER|TEST_DATA|TEST_DATA_IFS);;
 			RETRY_FUNC|RETRY_FN_EXP_BACKOFF|TIMEOUT);;
-			NET_DATAROOT|NET_MAX_PKT|NET_RHOST_RUN_DEBUG);;
+			NET_DATAROOT|NET_MAX_PKT|NET_RHOST_RUN_DEBUG|NETLOAD_CLN_NUMBER);;
 			*) tst_res TWARN "Reserved variable TST_$_tst_i used!";;
 			esac
 		done

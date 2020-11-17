@@ -5,6 +5,7 @@
  * Description:
  * Basic io_pgetevents() test to receive 1 event successfully.
  */
+#include "time64_variants.h"
 #include "tst_test.h"
 #include "tst_timer.h"
 #include "lapi/io_pgetevents.h"
@@ -12,18 +13,13 @@
 #ifdef HAVE_LIBAIO
 static int fd;
 
-static struct test_variants {
-	int (*io_pgetevents)(io_context_t ctx, long min_nr, long max_nr,
-		struct io_event *events, void *timeout, sigset_t *sigmask);
-	enum tst_ts_type type;
-	char *desc;
-} variants[] = {
+static struct time64_variants variants[] = {
 #if (__NR_io_pgetevents != __LTP__NR_INVALID_SYSCALL)
-	{ .io_pgetevents = sys_io_pgetevents, .type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
+	{ .io_pgetevents = sys_io_pgetevents, .ts_type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
 #endif
 
 #if (__NR_io_pgetevents_time64 != __LTP__NR_INVALID_SYSCALL)
-	{ .io_pgetevents = sys_io_pgetevents_time64, .type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
+	{ .io_pgetevents = sys_io_pgetevents_time64, .ts_type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
 #endif
 };
 
@@ -40,11 +36,11 @@ static void cleanup(void)
 
 static void run(void)
 {
-	struct test_variants *tv = &variants[tst_variant];
+	struct time64_variants *tv = &variants[tst_variant];
 	struct io_event events[1];
 	struct iocb cb, *cbs[1];
 	io_context_t ctx = 0;
-	struct tst_ts to = tst_ts_from_ns(tv->type, 10000);
+	struct tst_ts to = tst_ts_from_ns(tv->ts_type, 10000);
 	sigset_t sigmask;
 	char data[4096];
 	int ret;
@@ -55,9 +51,11 @@ static void run(void)
 	fd = SAFE_OPEN("io_pgetevents_file", O_RDWR | O_CREAT, 0644);
 	io_prep_pwrite(&cb, fd, data, 4096, 0);
 
-	ret = io_setup(1, &ctx);
-	if (ret < 0)
-		tst_brk(TBROK | TERRNO, "io_setup() failed");
+	TEST(io_setup(1, &ctx));
+	if (TST_RET == -ENOSYS)
+		tst_brk(TCONF | TRERRNO, "io_setup(): AIO not supported by kernel");
+	if (TST_RET < 0)
+		tst_brk(TBROK | TRERRNO, "io_setup() failed");
 
 	ret = io_submit(ctx, 1, cbs);
 	if (ret != 1)

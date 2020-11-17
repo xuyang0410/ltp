@@ -6,10 +6,13 @@ apk update
 
 apk add \
 	acl-dev \
+	asciidoc \
+	asciidoctor \
 	autoconf \
 	automake \
 	clang \
 	gcc \
+	git \
 	keyutils-dev \
 	libaio-dev \
 	libacl \
@@ -22,6 +25,7 @@ apk add \
 	musl-dev \
 	numactl-dev \
 	openssl-dev \
+	perl-json \
 	pkgconfig
 
 cat /etc/os-release

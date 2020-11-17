@@ -8,8 +8,12 @@ grep -v oldstable-updates /etc/apt/sources.list > /tmp/sources.list && mv /tmp/s
 
 apt update
 
-apt install -y --no-install-recommends \
+apt="apt install -y --no-install-recommends"
+
+$apt \
 	acl-dev \
+	asciidoc \
+	asciidoctor \
 	autoconf \
 	automake \
 	build-essential \
@@ -17,6 +21,7 @@ apt install -y --no-install-recommends \
 	devscripts \
 	clang \
 	gcc \
+	git \
 	libacl1 \
 	libacl1-dev \
 	libaio-dev \
@@ -25,6 +30,7 @@ apt install -y --no-install-recommends \
 	libcap2 \
 	libc6 \
 	libc6-dev \
+	libjson-perl \
 	libkeyutils-dev \
 	libkeyutils1 \
 	libmm-dev \
@@ -38,5 +44,7 @@ apt install -y --no-install-recommends \
 	linux-libc-dev \
 	lsb-release \
 	pkg-config
+
+$apt ruby-asciidoctor-pdf || true
 
 df -hT

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Copyright (c) 2012 Linux Test Project.  All Rights Reserved.
+ * Copyright (c) 2012-2020 Linux Test Project.  All Rights Reserved.
  * Author: Jan Kara, November 2013
  */
 
@@ -38,11 +38,51 @@ static long fanotify_mark(int fd, unsigned int flags, uint64_t mask,
 
 #endif /* HAVE_SYS_FANOTIFY_H */
 
+int safe_fanotify_init(const char *file, const int lineno,
+	unsigned int flags, unsigned int event_f_flags)
+{
+	int rval;
+
+#ifdef HAVE_SYS_FANOTIFY_H
+	rval = fanotify_init(flags, event_f_flags);
+
+	if (rval == -1) {
+		if (errno == ENOSYS) {
+			tst_brk(TCONF,
+				"fanotify is not configured in this kernel.");
+		}
+		tst_brk(TBROK | TERRNO,
+			"%s:%d: fanotify_init() failed", file, lineno);
+	}
+#else
+	tst_brk(TCONF, "Header <sys/fanotify.h> is not present");
+#endif /* HAVE_SYS_FANOTIFY_H */
+
+	return rval;
+}
+#define SAFE_FANOTIFY_INIT(fan, mode)  \
+	safe_fanotify_init(__FILE__, __LINE__, (fan), (mode))
+
 #ifndef FAN_REPORT_TID
 #define FAN_REPORT_TID		0x00000100
 #endif
 #ifndef FAN_REPORT_FID
 #define FAN_REPORT_FID		0x00000200
+#endif
+#ifndef FAN_REPORT_DIR_FID
+#define FAN_REPORT_DIR_FID	0x00000400
+#endif
+#ifndef FAN_REPORT_NAME
+#define FAN_REPORT_NAME		0x00000800
+#define FAN_REPORT_DFID_NAME     (FAN_REPORT_DIR_FID | FAN_REPORT_NAME)
+#endif
+
+/* Non-uapi convenience macros */
+#ifndef FAN_REPORT_DFID_NAME_FID
+#define FAN_REPORT_DFID_NAME_FID (FAN_REPORT_DFID_NAME | FAN_REPORT_FID)
+#endif
+#ifndef FAN_REPORT_DFID_FID
+#define FAN_REPORT_DFID_FID      (FAN_REPORT_DIR_FID | FAN_REPORT_FID)
 #endif
 
 #ifndef FAN_MARK_INODE
@@ -82,9 +122,6 @@ static long fanotify_mark(int fd, unsigned int flags, uint64_t mask,
 #ifndef FAN_OPEN_EXEC_PERM
 #define FAN_OPEN_EXEC_PERM	0x00040000
 #endif
-#ifndef FAN_DIR_MODIFY
-#define FAN_DIR_MODIFY		0x00080000
-#endif
 
 /*
  * FAN_ALL_PERM_EVENTS has been deprecated, so any new permission events
@@ -95,6 +132,11 @@ static long fanotify_mark(int fd, unsigned int flags, uint64_t mask,
  */
 #define LTP_ALL_PERM_EVENTS	(FAN_OPEN_PERM | FAN_OPEN_EXEC_PERM | \
 				 FAN_ACCESS_PERM)
+
+struct fanotify_group_type {
+	unsigned int flag;
+	const char * name;
+};
 
 struct fanotify_mark_type {
 	unsigned int flag;
@@ -113,6 +155,9 @@ typedef struct {
 #endif
 #ifndef FAN_EVENT_INFO_TYPE_DFID_NAME
 #define FAN_EVENT_INFO_TYPE_DFID_NAME	2
+#endif
+#ifndef FAN_EVENT_INFO_TYPE_DFID
+#define FAN_EVENT_INFO_TYPE_DFID	3
 #endif
 
 #ifndef HAVE_STRUCT_FANOTIFY_EVENT_INFO_HEADER
@@ -139,6 +184,11 @@ struct fanotify_event_info_fid {
 #endif /* HAVE_STRUCT_FANOTIFY_EVENT_INFO_FID_FSID___VAL */
 
 #ifdef HAVE_NAME_TO_HANDLE_AT
+
+#ifndef MAX_HANDLE_SZ
+#define MAX_HANDLE_SZ		128
+#endif
+
 /*
  * Helper function used to obtain fsid and file_handle for a given path.
  * Used by test files correlated to FAN_REPORT_FID functionality.
@@ -185,6 +235,9 @@ static inline void fanotify_save_fid(const char *path,
 		fid->fsid.val[1], fh[0], fh[1], fh[2]);
 }
 #endif /* HAVE_NAME_TO_HANDLE_AT */
+
+#define INIT_FANOTIFY_GROUP_TYPE(t) \
+	{ FAN_ ## t, "FAN_" #t }
 
 #define INIT_FANOTIFY_MARK_TYPE(t) \
 	{ FAN_MARK_ ## t, "FAN_MARK_" #t }

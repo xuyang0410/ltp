@@ -5,7 +5,12 @@
  * Started by Amir Goldstein <amir73il@gmail.com>
  *
  * DESCRIPTION
- *     Check FAN_DIR_MODIFY events with name info
+ *     Check fanotify directory entry modification events, events on child and
+ *     on self with group init flags:
+ *     - FAN_REPORT_DFID_NAME (dir fid + name)
+ *     - FAN_REPORT_DIR_FID   (dir fid)
+ *     - FAN_REPORT_DIR_FID | FAN_REPORT_FID   (dir fid + child fid)
+ *     - FAN_REPORT_DFID_NAME | FAN_REPORT_FID (dir fid + name + child fid)
  */
 #define _GNU_SOURCE
 #include "config.h"
@@ -23,9 +28,8 @@
 
 #if defined(HAVE_SYS_FANOTIFY_H)
 #include <sys/fanotify.h>
-#include <sys/inotify.h>
 
-#define EVENT_MAX 10
+#define EVENT_MAX 20
 
 /* Size of the event structure, not including file handle */
 #define EVENT_SIZE (sizeof(struct fanotify_event_metadata) + \
@@ -40,6 +44,7 @@
 struct event_t {
 	unsigned long long mask;
 	struct fanotify_fid_t *fid;
+	struct fanotify_fid_t *child_fid;
 	char name[BUF_SIZE];
 };
 
@@ -59,48 +64,111 @@ static char event_buf[EVENT_BUF_LEN];
 
 static struct test_case_t {
 	const char *tname;
+	struct fanotify_group_type group;
 	struct fanotify_mark_type mark;
 	unsigned long mask;
 	struct fanotify_mark_type sub_mark;
 	unsigned long sub_mask;
 } test_cases[] = {
 	{
-		/* Filesystem watch for dir modify and delete self events */
-		"FAN_REPORT_FID on filesystem with FAN_DIR_MODIFY",
+		"FAN_REPORT_DFID_NAME monitor filesystem for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DFID_NAME),
 		INIT_FANOTIFY_MARK_TYPE(FILESYSTEM),
-		FAN_DIR_MODIFY | FAN_DELETE_SELF | FAN_ONDIR,
-		{},
-		0,
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR,
+		/* Mount watch for events possible on children */
+		INIT_FANOTIFY_MARK_TYPE(MOUNT),
+		FAN_OPEN | FAN_CLOSE | FAN_ONDIR,
 	},
 	{
-		/* Recursive watches for dir modify events */
-		"FAN_REPORT_FID on directories with FAN_DIR_MODIFY",
+		"FAN_REPORT_DFID_NAME monitor directories for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DFID_NAME),
 		INIT_FANOTIFY_MARK_TYPE(INODE),
-		FAN_DIR_MODIFY,
-		/* Watches for delete self event on subdir */
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_ONDIR,
+		/* Watches for self events on subdir and events on subdir's children */
 		INIT_FANOTIFY_MARK_TYPE(INODE),
-		FAN_DIR_MODIFY | FAN_DELETE_SELF | FAN_ONDIR,
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR |
+		FAN_OPEN | FAN_CLOSE | FAN_EVENT_ON_CHILD,
+	},
+	{
+		"FAN_REPORT_DIR_FID monitor filesystem for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DIR_FID),
+		INIT_FANOTIFY_MARK_TYPE(FILESYSTEM),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR,
+		/* Mount watch for events possible on children */
+		INIT_FANOTIFY_MARK_TYPE(MOUNT),
+		FAN_OPEN | FAN_CLOSE | FAN_ONDIR,
+	},
+	{
+		"FAN_REPORT_DIR_FID monitor directories for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DIR_FID),
+		INIT_FANOTIFY_MARK_TYPE(INODE),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_ONDIR,
+		/* Watches for self events on subdir and events on subdir's children */
+		INIT_FANOTIFY_MARK_TYPE(INODE),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR |
+		FAN_OPEN | FAN_CLOSE | FAN_EVENT_ON_CHILD,
+	},
+	{
+		"FAN_REPORT_DFID_FID monitor filesystem for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DFID_FID),
+		INIT_FANOTIFY_MARK_TYPE(FILESYSTEM),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR,
+		/* Mount watch for events possible on children */
+		INIT_FANOTIFY_MARK_TYPE(MOUNT),
+		FAN_OPEN | FAN_CLOSE | FAN_ONDIR,
+	},
+	{
+		"FAN_REPORT_DFID_FID monitor directories for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DFID_FID),
+		INIT_FANOTIFY_MARK_TYPE(INODE),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_ONDIR,
+		/* Watches for self events on subdir and events on subdir's children */
+		INIT_FANOTIFY_MARK_TYPE(INODE),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR |
+		FAN_OPEN | FAN_CLOSE | FAN_EVENT_ON_CHILD,
+	},
+	{
+		"FAN_REPORT_DFID_NAME_FID monitor filesystem for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DFID_NAME_FID),
+		INIT_FANOTIFY_MARK_TYPE(FILESYSTEM),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR,
+		/* Mount watch for events possible on children */
+		INIT_FANOTIFY_MARK_TYPE(MOUNT),
+		FAN_OPEN | FAN_CLOSE | FAN_ONDIR,
+	},
+	{
+		"FAN_REPORT_DFID_NAME_FID monitor directories for create/delete/move/open/close",
+		INIT_FANOTIFY_GROUP_TYPE(REPORT_DFID_NAME_FID),
+		INIT_FANOTIFY_MARK_TYPE(INODE),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_ONDIR,
+		/* Watches for self events on subdir and events on subdir's children */
+		INIT_FANOTIFY_MARK_TYPE(INODE),
+		FAN_CREATE | FAN_DELETE | FAN_MOVE | FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR |
+		FAN_OPEN | FAN_CLOSE | FAN_EVENT_ON_CHILD,
 	},
 };
 
 static void do_test(unsigned int number)
 {
-	int fd, len = 0, i = 0, test_num = 0, tst_count = 0;
+	int fd, dirfd, len = 0, i = 0, test_num = 0, tst_count = 0;
 	struct test_case_t *tc = &test_cases[number];
+	struct fanotify_group_type *group = &tc->group;
 	struct fanotify_mark_type *mark = &tc->mark;
 	struct fanotify_mark_type *sub_mark = &tc->sub_mark;
 	struct fanotify_fid_t root_fid, dir_fid, file_fid;
 
 	tst_res(TINFO, "Test #%d: %s", number, tc->tname);
 
-	fd_notify = fanotify_init(FAN_REPORT_FID, 0);
+	fd_notify = fanotify_init(group->flag, 0);
 	if (fd_notify == -1) {
-		if (errno == EINVAL)
-			tst_brk(TCONF,
-				"FAN_REPORT_FID not supported by kernel");
+		if (errno == EINVAL) {
+			tst_res(TCONF,
+				"%s not supported by kernel", group->name);
+			return;
+		}
 
 		tst_brk(TBROK | TERRNO,
-			"fanotify_init(FAN_REPORT_FID, 0) failed");
+			"fanotify_init(%s, 0) failed", group->name);
 	}
 
 	/*
@@ -108,10 +176,6 @@ static void do_test(unsigned int number)
 	 */
 	if (fanotify_mark(fd_notify, FAN_MARK_ADD | mark->flag, tc->mask,
 			  AT_FDCWD, MOUNT_PATH) < 0) {
-		if (errno == EINVAL)
-			tst_brk(TCONF,
-				"FAN_DIR_MODIFY not supported by kernel");
-
 		tst_brk(TBROK | TERRNO,
 		    "fanotify_mark (%d, FAN_MARK_ADD | %s, 0x%lx, "
 		    "AT_FDCWD, '"MOUNT_PATH"') failed",
@@ -123,8 +187,10 @@ static void do_test(unsigned int number)
 
 	/*
 	 * Create subdir and watch open events "on children" with name.
+	 * Make it a mount root.
 	 */
 	SAFE_MKDIR(dname1, 0755);
+	SAFE_MOUNT(dname1, dname1, "none", MS_BIND, NULL);
 
 	/* Save the subdir fid */
 	fanotify_save_fid(dname1, &dir_fid);
@@ -138,8 +204,9 @@ static void do_test(unsigned int number)
 		    fd_notify, sub_mark->name, tc->sub_mask, dname1);
 	}
 
-	event_set[tst_count].mask = FAN_DIR_MODIFY;
+	event_set[tst_count].mask = FAN_CREATE | FAN_ONDIR;
 	event_set[tst_count].fid = &root_fid;
+	event_set[tst_count].child_fid = NULL;
 	strcpy(event_set[tst_count].name, DIR_NAME1);
 	tst_count++;
 
@@ -151,6 +218,7 @@ static void do_test(unsigned int number)
 
 	SAFE_WRITE(1, fd, "1", 1);
 	SAFE_RENAME(fname1, fname2);
+
 	SAFE_CLOSE(fd);
 
 	/* Generate delete events with fname2 */
@@ -160,27 +228,92 @@ static void do_test(unsigned int number)
 	len += SAFE_READ(0, fd_notify, event_buf + len, EVENT_BUF_LEN - len);
 
 	/*
-	 * FAN_DIR_MODIFY events with the same name are merged.
+	 * FAN_CREATE|FAN_DELETE|FAN_MOVE events with the same name are merged.
 	 */
-	event_set[tst_count].mask = FAN_DIR_MODIFY;
+	event_set[tst_count].mask = FAN_CREATE | FAN_MOVED_FROM;
 	event_set[tst_count].fid = &dir_fid;
+	event_set[tst_count].child_fid = NULL;
 	strcpy(event_set[tst_count].name, FILE_NAME1);
 	tst_count++;
-	event_set[tst_count].mask = FAN_DIR_MODIFY;
+	/*
+	 * Event on non-dir child with the same name may be merged with the
+	 * directory entry modification events above, unless FAN_REPORT_FID is
+	 * set and child fid is reported. If FAN_REPORT_FID is set but
+	 * FAN_REPORT_NAME is not set, then FAN_CREATE above is merged with
+	 * FAN_DELETE below and FAN_OPEN will be merged with FAN_CLOSE.
+	 */
+	if (group->flag & FAN_REPORT_NAME) {
+		event_set[tst_count].mask = FAN_OPEN;
+		event_set[tst_count].fid = &dir_fid;
+		event_set[tst_count].child_fid = &file_fid;
+		strcpy(event_set[tst_count].name, FILE_NAME1);
+		tst_count++;
+	}
+
+	event_set[tst_count].mask = FAN_DELETE | FAN_MOVED_TO;
 	event_set[tst_count].fid = &dir_fid;
+	event_set[tst_count].child_fid = NULL;
 	strcpy(event_set[tst_count].name, FILE_NAME2);
 	tst_count++;
-
 	/*
-	 * Directory watch does not get self events on children.
-	 * Filesystem watch gets self event w/o name info.
+	 * When not reporting name, open of FILE_NAME1 is merged
+	 * with close of FILE_NAME2.
 	 */
-	if (mark->flag == FAN_MARK_FILESYSTEM) {
-		event_set[tst_count].mask = FAN_DELETE_SELF;
-		event_set[tst_count].fid = &file_fid;
+	if (!(group->flag & FAN_REPORT_NAME)) {
+		event_set[tst_count].mask = FAN_OPEN | FAN_CLOSE_WRITE;
+		event_set[tst_count].fid = &dir_fid;
+		event_set[tst_count].child_fid = &file_fid;
 		strcpy(event_set[tst_count].name, "");
 		tst_count++;
 	}
+	/*
+	 * Directory watch does not get self events on children.
+	 * Filesystem watch gets self event w/o name info if FAN_REPORT_FID
+	 * is set.
+	 */
+	if (mark->flag == FAN_MARK_FILESYSTEM && (group->flag & FAN_REPORT_FID)) {
+		event_set[tst_count].mask = FAN_DELETE_SELF | FAN_MOVE_SELF;
+		event_set[tst_count].fid = &file_fid;
+		event_set[tst_count].child_fid = NULL;
+		strcpy(event_set[tst_count].name, "");
+		tst_count++;
+	}
+	/*
+	 * When reporting name, close of FILE_NAME2 is not merged with
+	 * open of FILE_NAME1 and it is received after the merged self
+	 * events.
+	 */
+	if (group->flag & FAN_REPORT_NAME) {
+		event_set[tst_count].mask = FAN_CLOSE_WRITE;
+		event_set[tst_count].fid = &dir_fid;
+		event_set[tst_count].child_fid = &file_fid;
+		strcpy(event_set[tst_count].name, FILE_NAME2);
+		tst_count++;
+	}
+
+	dirfd = SAFE_OPEN(dname1, O_RDONLY | O_DIRECTORY);
+	SAFE_CLOSE(dirfd);
+
+	SAFE_UMOUNT(dname1);
+
+	/*
+	 * Directory watch gets open/close events on itself and on its subdirs.
+	 * Filesystem watch gets open/close event on all directories with name ".".
+	 */
+	event_set[tst_count].mask = FAN_OPEN | FAN_CLOSE_NOWRITE | FAN_ONDIR;
+	event_set[tst_count].fid = &dir_fid;
+	event_set[tst_count].child_fid = NULL;
+	strcpy(event_set[tst_count].name, ".");
+	tst_count++;
+	/*
+	 * Directory watch gets self event on itself and filesystem watch gets
+	 * self event on all directories with name ".".
+	 */
+	event_set[tst_count].mask = FAN_DELETE_SELF | FAN_MOVE_SELF | FAN_ONDIR;
+	event_set[tst_count].fid = &dir_fid;
+	event_set[tst_count].child_fid = NULL;
+	strcpy(event_set[tst_count].name, ".");
+	tst_count++;
 
 	SAFE_RENAME(dname1, dname2);
 	SAFE_RMDIR(dname2);
@@ -188,21 +321,18 @@ static void do_test(unsigned int number)
 	/* Read more events on dirs */
 	len += SAFE_READ(0, fd_notify, event_buf + len, EVENT_BUF_LEN - len);
 
-	event_set[tst_count].mask = FAN_DIR_MODIFY;
+	event_set[tst_count].mask = FAN_MOVED_FROM | FAN_ONDIR;
 	event_set[tst_count].fid = &root_fid;
+	event_set[tst_count].child_fid = NULL;
 	strcpy(event_set[tst_count].name, DIR_NAME1);
 	tst_count++;
-	event_set[tst_count].mask = FAN_DIR_MODIFY;
+	event_set[tst_count].mask = FAN_DELETE | FAN_MOVED_TO | FAN_ONDIR;
 	event_set[tst_count].fid = &root_fid;
+	event_set[tst_count].child_fid = NULL;
 	strcpy(event_set[tst_count].name, DIR_NAME2);
 	tst_count++;
-	/*
-	 * Directory watch gets self event on itself w/o name info.
-	 */
-	event_set[tst_count].mask = FAN_DELETE_SELF | FAN_ONDIR;
-	strcpy(event_set[tst_count].name, "");
-	event_set[tst_count].fid = &dir_fid;
-	tst_count++;
+	/* Expect no more events */
+	event_set[tst_count].mask = 0;
 
 	/*
 	 * Cleanup the marks
@@ -214,31 +344,60 @@ static void do_test(unsigned int number)
 		struct event_t *expected = &event_set[test_num];
 		struct fanotify_event_metadata *event;
 		struct fanotify_event_info_fid *event_fid;
+		struct fanotify_event_info_fid *child_fid;
+		struct fanotify_fid_t *expected_fid = expected->fid;
+		struct fanotify_fid_t *expected_child_fid = expected->child_fid;
 		struct file_handle *file_handle;
 		unsigned int fhlen;
 		const char *filename;
-		int namelen, info_type;
+		int namelen, info_type, mask_match, info_id = 0;
 
 		event = (struct fanotify_event_metadata *)&event_buf[i];
 		event_fid = (struct fanotify_event_info_fid *)(event + 1);
 		file_handle = (struct file_handle *)event_fid->handle;
 		fhlen = file_handle->handle_bytes;
 		filename = (char *)file_handle->f_handle + fhlen;
-		namelen = ((char *)event + event->event_len) - filename;
-		/* End of event could have name, zero padding, both or none */
+		child_fid = (void *)((char *)event_fid + event_fid->hdr.len);
+		namelen = (char *)child_fid - (char *)filename;
+		/* End of event_fid could have name, zero padding, both or none */
 		if (namelen > 0) {
 			namelen = strlen(filename);
 		} else {
 			filename = "";
 			namelen = 0;
 		}
+		/* Is there a child fid after first fid record? */
+		if (((char *)child_fid - (char *)event) >= event->event_len)
+			child_fid = NULL;
+
+		if (!(group->flag & FAN_REPORT_FID))
+			expected_child_fid = NULL;
+
+		if (!(group->flag & FAN_REPORT_NAME))
+			expected->name[0] = 0;
 
 		if (expected->name[0]) {
 			info_type = FAN_EVENT_INFO_TYPE_DFID_NAME;
-		} else {
+		} else if (expected->mask & FAN_ONDIR) {
+			info_type = FAN_EVENT_INFO_TYPE_DFID;
+		} else if (expected->mask & (FAN_DELETE_SELF | FAN_MOVE_SELF)) {
+			/* Self event on non-dir has only child fid */
 			info_type = FAN_EVENT_INFO_TYPE_FID;
+		} else {
+			info_type = FAN_EVENT_INFO_TYPE_DFID;
 		}
 
+		/*
+		 * Event may contain more than the expected mask, but it must
+		 * have all the bits in expected mask.
+		 * Expected event on dir must not get event on non dir and the
+		 * other way around.
+		 */
+		mask_match = ((event->mask & expected->mask) &&
+			      !(expected->mask & ~event->mask) &&
+			      !((event->mask ^ expected->mask) & FAN_ONDIR));
+
+check_match:
 		if (test_num >= tst_count) {
 			tst_res(TFAIL,
 				"got unnecessary event: mask=%llx "
@@ -256,7 +415,7 @@ static void do_test(unsigned int number)
 				(unsigned)event->pid, event->fd,
 				event->event_len, event_fid->hdr.info_type,
 				event_fid->hdr.len, fhlen);
-		} else if (event->mask != expected->mask) {
+		} else if (!mask_match) {
 			tst_res(TFAIL,
 				"got event: mask=%llx (expected %llx) "
 				"pid=%u fd=%d name='%s' "
@@ -273,7 +432,7 @@ static void do_test(unsigned int number)
 				(unsigned)event->pid, event->fd,
 				event->event_len, event_fid->hdr.info_type,
 				info_type, event_fid->hdr.len, fhlen);
-		} else if (fhlen != expected->fid->handle.handle_bytes) {
+		} else if (fhlen != expected_fid->handle.handle_bytes) {
 			tst_res(TFAIL,
 				"got event: mask=%llx pid=%u fd=%d name='%s' "
 				"len=%d info_type=%d info_len=%d fh_len=%d expected(%d)"
@@ -282,10 +441,10 @@ static void do_test(unsigned int number)
 				(unsigned)event->pid, event->fd, filename,
 				event->event_len, info_type,
 				event_fid->hdr.len, fhlen,
-				expected->fid->handle.handle_bytes,
+				expected_fid->handle.handle_bytes,
 				file_handle->handle_type);
 		} else if (file_handle->handle_type !=
-			   expected->fid->handle.handle_type) {
+			   expected_fid->handle.handle_type) {
 			tst_res(TFAIL,
 				"got event: mask=%llx pid=%u fd=%d name='%s' "
 				"len=%d info_type=%d info_len=%d fh_len=%d "
@@ -295,9 +454,9 @@ static void do_test(unsigned int number)
 				event->event_len, info_type,
 				event_fid->hdr.len, fhlen,
 				file_handle->handle_type,
-				expected->fid->handle.handle_type);
+				expected_fid->handle.handle_type);
 		} else if (memcmp(file_handle->f_handle,
-				  expected->fid->handle.f_handle, fhlen)) {
+				  expected_fid->handle.f_handle, fhlen)) {
 			tst_res(TFAIL,
 				"got event: mask=%llx pid=%u fd=%d name='%s' "
 				"len=%d info_type=%d info_len=%d fh_len=%d "
@@ -308,7 +467,7 @@ static void do_test(unsigned int number)
 				event_fid->hdr.len, fhlen,
 				file_handle->handle_type,
 				*(int *)(file_handle->f_handle));
-		} else if (memcmp(&event_fid->fsid, &expected->fid->fsid,
+		} else if (memcmp(&event_fid->fsid, &expected_fid->fsid,
 				  sizeof(event_fid->fsid)) != 0) {
 			tst_res(TFAIL,
 				"got event: mask=%llx pid=%u fd=%d name='%s' "
@@ -320,8 +479,8 @@ static void do_test(unsigned int number)
 				event_fid->hdr.len, fhlen,
 				FSID_VAL_MEMBER(event_fid->fsid, 0),
 				FSID_VAL_MEMBER(event_fid->fsid, 1),
-				expected->fid->fsid.val[0],
-				expected->fid->fsid.val[1]);
+				expected_fid->fsid.val[0],
+				expected_fid->fsid.val[1]);
 		} else if (strcmp(expected->name, filename)) {
 			tst_res(TFAIL,
 				"got event: mask=%llx "
@@ -343,20 +502,55 @@ static void do_test(unsigned int number)
 				event->fd, filename,
 				event->event_len, event_fid->hdr.info_type,
 				event_fid->hdr.len, fhlen);
+		} else if (!!child_fid != !!expected_child_fid) {
+			tst_res(TFAIL,
+				"got event: mask=%llx "
+				"pid=%u fd=%d name='%s' num_info=%d (expected %d) "
+				"len=%d info_type=%d info_len=%d fh_len=%d",
+				(unsigned long long)event->mask,
+				(unsigned)event->pid, event->fd,
+				filename, 1 + !!child_fid, 1 + !!expected_child_fid,
+				event->event_len, event_fid->hdr.info_type,
+				event_fid->hdr.len, fhlen);
+		} else if (child_fid) {
+			tst_res(TINFO,
+				"got event #%d: info #%d: info_type=%d info_len=%d fh_len=%d",
+				test_num, info_id, event_fid->hdr.info_type,
+				event_fid->hdr.len, fhlen);
+
+			/* Recheck event_fid match with child_fid */
+			event_fid = child_fid;
+			expected_fid = expected->child_fid;
+			info_id = 1;
+			info_type = FAN_EVENT_INFO_TYPE_FID;
+			file_handle = (struct file_handle *)event_fid->handle;
+			fhlen = file_handle->handle_bytes;
+			child_fid = NULL;
+			expected_child_fid = NULL;
+			goto check_match;
 		} else {
 			tst_res(TPASS,
 				"got event #%d: mask=%llx pid=%u fd=%d name='%s' "
-				"len=%d info_type=%d info_len=%d fh_len=%d",
+				"len=%d; info #%d: info_type=%d info_len=%d fh_len=%d",
 				test_num, (unsigned long long)event->mask,
 				(unsigned)event->pid, event->fd, filename,
-				event->event_len, event_fid->hdr.info_type,
+				event->event_len, info_id, event_fid->hdr.info_type,
 				event_fid->hdr.len, fhlen);
+		}
+
+		if (test_num < tst_count)
+			test_num++;
+
+		if (mask_match) {
+			/* In case of merged event match next expected mask */
+			event->mask &= ~expected->mask | FAN_ONDIR;
+			if (event->mask & ~FAN_ONDIR)
+				continue;
 		}
 
 		i += event->event_len;
 		if (event->fd > 0)
 			SAFE_CLOSE(event->fd);
-		test_num++;
 	}
 
 	for (; test_num < tst_count; test_num++) {

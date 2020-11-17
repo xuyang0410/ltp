@@ -12,6 +12,7 @@
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
+#include <sys/sysinfo.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <signal.h>
@@ -44,19 +45,8 @@ int safe_chroot(const char *file, const int lineno, const char *path);
 #define SAFE_DIRNAME(path) \
 	safe_dirname(__FILE__, __LINE__, NULL, (path))
 
-static inline int safe_dup(const char *file, const int lineno,
-			   int oldfd)
-{
-	int rval;
+int safe_dup(const char *file, const int lineno, int oldfd);
 
-	rval = dup(oldfd);
-	if (rval == -1) {
-		tst_brk_(file, lineno, TBROK | TERRNO,
-			 "dup(%i) failed", oldfd);
-	}
-
-	return rval;
-}
 #define SAFE_DUP(oldfd) \
 	safe_dup(__FILE__, __LINE__, (oldfd))
 
@@ -129,7 +119,7 @@ int safe_setreuid(const char *file, const int lineno,
 int safe_setpgid(const char *file, const int lineno, pid_t pid, pid_t pgid);
 
 #define SAFE_SETPGID(pid, pgid) \
-	safe_setpgid(__FILE__, __LINE__, (pid), (pgid));
+	safe_setpgid(__FILE__, __LINE__, (pid), (pgid))
 
 pid_t safe_getpgid(const char *file, const int lineno, pid_t pid);
 
@@ -140,7 +130,7 @@ pid_t safe_getpgid(const char *file, const int lineno, pid_t pid);
 	safe_unlink(__FILE__, __LINE__, NULL, (pathname))
 
 #define SAFE_LINK(oldpath, newpath) \
-        safe_link(__FILE__, __LINE__, NULL, (oldpath), (newpath))
+	safe_link(__FILE__, __LINE__, NULL, (oldpath), (newpath))
 
 #define SAFE_LINKAT(olddirfd, oldpath, newdirfd, newpath, flags) \
 	safe_linkat(__FILE__, __LINE__, NULL, (olddirfd), (oldpath), \
@@ -150,7 +140,7 @@ pid_t safe_getpgid(const char *file, const int lineno, pid_t pid);
 	safe_readlink(__FILE__, __LINE__, NULL, (path), (buf), (bufsize))
 
 #define SAFE_SYMLINK(oldpath, newpath) \
-        safe_symlink(__FILE__, __LINE__, NULL, (oldpath), (newpath))
+	safe_symlink(__FILE__, __LINE__, NULL, (oldpath), (newpath))
 
 #define SAFE_WRITE(len_strict, fildes, buf, nbyte) \
 	safe_write(__FILE__, __LINE__, NULL, (len_strict), (fildes), (buf), (nbyte))
@@ -177,10 +167,10 @@ pid_t safe_getpgid(const char *file, const int lineno, pid_t pid);
 	safe_fchown(__FILE__, __LINE__, NULL, (fd), (owner), (group))
 
 #define SAFE_WAIT(status) \
-        safe_wait(__FILE__, __LINE__, NULL, (status))
+	safe_wait(__FILE__, __LINE__, NULL, (status))
 
 #define SAFE_WAITPID(pid, status, opts) \
-        safe_waitpid(__FILE__, __LINE__, NULL, (pid), (status), (opts))
+	safe_waitpid(__FILE__, __LINE__, NULL, (pid), (status), (opts))
 
 #define SAFE_KILL(pid, sig) \
 	safe_kill(__FILE__, __LINE__, NULL, (pid), (sig))
@@ -255,10 +245,14 @@ static inline int safe_ftruncate(const char *file, const int lineno,
 	int rval;
 
 	rval = ftruncate(fd, length);
+
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
-			 "ftruncate(%d,%ld) failed",
-			 fd, (long)length);
+			"ftruncate(%d,%ld) failed", fd, (long)length);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid ftruncate(%d,%ld) return value %d", fd,
+			(long)length, rval);
 	}
 
 	return rval;
@@ -272,10 +266,14 @@ static inline int safe_truncate(const char *file, const int lineno,
 	int rval;
 
 	rval = truncate(path, length);
+
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
-			 "truncate(%s,%ld) failed",
-			 path, (long)length);
+			"truncate(%s,%ld) failed", path, (long)length);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid truncate(%s,%ld) return value %d", path,
+			(long)length, rval);
 	}
 
 	return rval;
@@ -292,7 +290,11 @@ static inline int safe_stat(const char *file, const int lineno,
 
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
-			 "stat(%s,%p) failed", path, buf);
+			"stat(%s,%p) failed", path, buf);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid stat(%s,%p) return value %d", path, buf,
+			rval);
 	}
 
 	return rval;
@@ -310,6 +312,9 @@ static inline int safe_fstat(const char *file, const int lineno,
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
 			"fstat(%d,%p) failed", fd, buf);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid fstat(%d,%p) return value %d", fd, buf, rval);
 	}
 
 	return rval;
@@ -327,6 +332,10 @@ static inline int safe_lstat(const char *file, const int lineno,
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
 			"lstat(%s,%p) failed", path, buf);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid lstat(%s,%p) return value %d", path, buf,
+			rval);
 	}
 
 	return rval;
@@ -343,13 +352,17 @@ static inline int safe_statfs(const char *file, const int lineno,
 
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
-		         "statfs(%s,%p) failed", path, buf);
+			"statfs(%s,%p) failed", path, buf);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid statfs(%s,%p) return value %d", path, buf,
+			rval);
 	}
 
 	return rval;
 }
 #define SAFE_STATFS(path, buf) \
-        safe_statfs(__FILE__, __LINE__, (path), (buf))
+	safe_statfs(__FILE__, __LINE__, (path), (buf))
 
 static inline off_t safe_lseek(const char *file, const int lineno,
                                int fd, off_t offset, int whence)
@@ -360,8 +373,11 @@ static inline off_t safe_lseek(const char *file, const int lineno,
 
 	if (rval == (off_t) -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
-			"lseek(%d,%ld,%d) failed",
-			fd, (long)offset, whence);
+			"lseek(%d,%ld,%d) failed", fd, (long)offset, whence);
+	} else if (rval < 0) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid lseek(%d,%ld,%d) return value %ld", fd,
+			(long)offset, whence, (long)rval);
 	}
 
 	return rval;
@@ -378,8 +394,11 @@ static inline int safe_getrlimit(const char *file, const int lineno,
 
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
-			"getrlimit(%d,%p) failed",
-			resource, rlim);
+			"getrlimit(%d,%p) failed", resource, rlim);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid getrlimit(%d,%p) return value %d", resource,
+			rlim, rval);
 	}
 
 	return rval;
@@ -396,8 +415,11 @@ static inline int safe_setrlimit(const char *file, const int lineno,
 
 	if (rval == -1) {
 		tst_brk_(file, lineno, TBROK | TERRNO,
-			 "setrlimit(%d,%p) failed",
-			 resource, rlim);
+			"setrlimit(%d,%p) failed", resource, rlim);
+	} else if (rval) {
+		tst_brk_(file, lineno, TBROK | TERRNO,
+			"Invalid setrlimit(%d,%p) return value %d", resource,
+			rlim, rval);
 	}
 
 	return rval;
@@ -406,21 +428,8 @@ static inline int safe_setrlimit(const char *file, const int lineno,
 	safe_setrlimit(__FILE__, __LINE__, (resource), (rlim))
 
 typedef void (*sighandler_t)(int);
-static inline sighandler_t safe_signal(const char *file, const int lineno,
-				       int signum, sighandler_t handler)
-{
-	sighandler_t rval;
-
-	rval = signal(signum, handler);
-
-	if (rval == SIG_ERR) {
-		tst_brk_(file, lineno, TBROK | TERRNO,
-			"signal(%d,%p) failed",
-			signum, handler);
-	}
-
-	return rval;
-}
+sighandler_t safe_signal(const char *file, const int lineno,
+	int signum, sighandler_t handler);
 
 #define SAFE_SIGNAL(signum, handler) \
 	safe_signal(__FILE__, __LINE__, (signum), (handler))
@@ -431,32 +440,32 @@ int safe_sigaction(const char *file, const int lineno,
 #define SAFE_SIGACTION(signum, act, oldact) \
 	safe_sigaction(__FILE__, __LINE__, (signum), (act), (oldact))
 
-void safe_sigaddset(const char *file, const int lineno,
+int safe_sigaddset(const char *file, const int lineno,
                     sigset_t *sigs, int signo);
 #define SAFE_SIGADDSET(sigs, signo) \
 	safe_sigaddset(__FILE__, __LINE__, (sigs), (signo))
 
-void safe_sigdelset(const char *file, const int lineno,
+int safe_sigdelset(const char *file, const int lineno,
                     sigset_t *sigs, int signo);
 #define SAFE_SIGDELSET(sigs, signo) \
 	safe_sigdelset(__FILE__, __LINE__, (sigs), (signo))
 
-void safe_sigemptyset(const char *file, const int lineno,
+int safe_sigemptyset(const char *file, const int lineno,
                       sigset_t *sigs);
 #define SAFE_SIGEMPTYSET(sigs) \
 	safe_sigemptyset(__FILE__, __LINE__, (sigs))
 
-void safe_sigfillset(const char *file, const int lineno,
+int safe_sigfillset(const char *file, const int lineno,
 		     sigset_t *sigs);
 #define SAFE_SIGFILLSET(sigs) \
 	safe_sigfillset(__FILE__, __LINE__, (sigs))
 
-void safe_sigprocmask(const char *file, const int lineno,
+int safe_sigprocmask(const char *file, const int lineno,
                       int how, sigset_t *set, sigset_t *oldset);
 #define SAFE_SIGPROCMASK(how, set, oldset) \
 	safe_sigprocmask(__FILE__, __LINE__, (how), (set), (oldset))
 
-void safe_sigwait(const char *file, const int lineno,
+int safe_sigwait(const char *file, const int lineno,
                   sigset_t *set, int *sig);
 #define SAFE_SIGWAIT(set, sig) \
 	safe_sigwait(__FILE__, __LINE__, (set), (sig))
@@ -550,11 +559,6 @@ int safe_mincore(const char *file, const int lineno, void *start,
 #define SAFE_MINCORE(start, length, vec) \
 	safe_mincore(__FILE__, __LINE__, (start), (length), (vec))
 
-int safe_fanotify_init(const char *file, const int lineno,
-	unsigned int flags, unsigned int event_f_flags);
-#define SAFE_FANOTIFY_INIT(fan, mode)  \
-	safe_fanotify_init(__FILE__, __LINE__, (fan), (mode))
-
 int safe_personality(const char *filename, unsigned int lineno,
 		    unsigned long persona);
 #define SAFE_PERSONALITY(persona) safe_personality(__FILE__, __LINE__, persona)
@@ -567,25 +571,15 @@ int safe_personality(const char *filename, unsigned int lineno,
 	}							\
 	} while (0)
 
-void safe_unshare(const char *file, const int lineno, int flags);
+int safe_unshare(const char *file, const int lineno, int flags);
 #define SAFE_UNSHARE(flags) safe_unshare(__FILE__, __LINE__, (flags))
 
-void safe_setns(const char *file, const int lineno, int fd, int nstype);
-#define SAFE_SETNS(fd, nstype) safe_setns(__FILE__, __LINE__, (fd), (nstype));
+int safe_setns(const char *file, const int lineno, int fd, int nstype);
+#define SAFE_SETNS(fd, nstype) safe_setns(__FILE__, __LINE__, (fd), (nstype))
 
-static inline void safe_cmd(const char *file, const int lineno, const char *const argv[],
-				  const char *stdout_path, const char *stderr_path)
-{
-	int rval;
+void safe_cmd(const char *file, const int lineno, const char *const argv[],
+	const char *stdout_path, const char *stderr_path);
 
-	switch ((rval = tst_cmd(argv, stdout_path, stderr_path,
-				TST_CMD_PASS_RETVAL | TST_CMD_TCONF_ON_MISSING))) {
-	case 0:
-		break;
-	default:
-		tst_brk(TBROK, "%s:%d: %s failed (%d)", file, lineno, argv[0], rval);
-	}
-}
 #define SAFE_CMD(argv, stdout_path, stderr_path) \
 	safe_cmd(__FILE__, __LINE__, (argv), (stdout_path), (stderr_path))
 /*
@@ -597,5 +591,9 @@ long tst_safe_ptrace(const char *file, const int lineno, int req, pid_t pid,
 	void *addr, void *data);
 #define SAFE_PTRACE(req, pid, addr, data) \
 	tst_safe_ptrace(__FILE__, __LINE__, req, pid, addr, data)
+
+int safe_sysinfo(const char *file, const int lineno, struct sysinfo *info);
+#define SAFE_SYSINFO(info) \
+	safe_sysinfo(__FILE__, __LINE__, (info))
 
 #endif /* SAFE_MACROS_H__ */

@@ -55,7 +55,7 @@ static sem_t semsig2;
 static unsigned long count_sig;
 #endif
 
-sigset_t usersigs;
+static sigset_t usersigs;
 
 struct thestruct {
 	int sig;

@@ -18,10 +18,12 @@
 #include <sys/stat.h>
 #include "lapi/fs.h"
 #include "lapi/utime.h"
+#include "time64_variants.h"
 #include "tst_timer.h"
 
-#define TEST_FILE	"test_file"
-#define TEST_DIR	"test_dir"
+#define MNTPOINT 	"mntpoint"
+#define TEST_FILE	MNTPOINT"/test_file"
+#define TEST_DIR	MNTPOINT"/test_dir"
 
 static void *bad_addr;
 
@@ -109,18 +111,13 @@ static inline int sys_utimensat_time64(int dirfd, const char *pathname,
 	return tst_syscall(__NR_utimensat_time64, dirfd, pathname, times, flags);
 }
 
-static struct test_variants {
-	int (*utimensat)(int dirfd, const char *pathname, void *times,
-			 int flags);
-	enum tst_ts_type type;
-	char *desc;
-} variants[] = {
+static struct time64_variants variants[] = {
 #if (__NR_utimensat != __LTP__NR_INVALID_SYSCALL)
-	{ .utimensat = sys_utimensat, .type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
+	{ .utimensat = sys_utimensat, .ts_type = TST_KERN_OLD_TIMESPEC, .desc = "syscall with old kernel spec"},
 #endif
 
 #if (__NR_utimensat_time64 != __LTP__NR_INVALID_SYSCALL)
-	{ .utimensat = sys_utimensat_time64, .type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
+	{ .utimensat = sys_utimensat_time64, .ts_type = TST_KERN_TIMESPEC, .desc = "syscall time64 with kernel spec"},
 #endif
 };
 
@@ -161,6 +158,7 @@ static void update_error(struct test_case *tc)
 	static struct tst_kern_exv kvers[] = {
 		/* Ubuntu kernel has patch b3b4283 since 4.4.0-48.69 */
 		{ "UBUNTU", "4.4.0-48.69" },
+		{ NULL, NULL},
 	};
 
 	if (tc->exp_err != -1)
@@ -185,7 +183,12 @@ static void change_attr(struct test_case *tc, int fd, int set)
 	if (!tc->attr)
 		return;
 
-	SAFE_IOCTL(fd, FS_IOC_GETFLAGS, &attr);
+	if (ioctl(fd, FS_IOC_GETFLAGS, &attr)) {
+		if (errno == ENOTTY)
+			tst_brk(TCONF | TERRNO, "Attributes not supported by FS");
+		else
+			tst_brk(TBROK | TERRNO, "ioctl(fd, FS_IOC_GETFLAGS, &attr) failed");
+	}
 
 	if (set)
 		attr |= tc->attr;
@@ -197,11 +200,15 @@ static void change_attr(struct test_case *tc, int fd, int set)
 
 static void reset_time(char *pathname, int dfd, int flags, int i)
 {
-	struct test_variants *tv = &variants[tst_variant];
+	struct time64_variants *tv = &variants[tst_variant];
 	struct stat sb;
 
 	memset(&ts, 0, sizeof(ts));
-	tv->utimensat(dfd, pathname, &ts, flags);
+	TEST(tv->utimensat(dfd, pathname, &ts, flags));
+	if (TST_RET) {
+		tst_res(TINFO | TTERRNO, "%2d: utimensat(%d, %s, {0, 0}, %d) failed",
+			i, dfd, pathname, flags);
+	}
 
 	TEST(stat(pathname, &sb));
 	if (TST_RET) {
@@ -214,7 +221,7 @@ static void reset_time(char *pathname, int dfd, int flags, int i)
 
 static void run(unsigned int i)
 {
-	struct test_variants *tv = &variants[tst_variant];
+	struct time64_variants *tv = &variants[tst_variant];
 	struct test_case *tc = &tcase[i];
 	int dfd = AT_FDCWD, fd = 0, atime_change, mtime_change;
 	struct mytime *mytime = tc->mytime;
@@ -236,7 +243,7 @@ static void run(unsigned int i)
 	}
 
 	if (mytime) {
-		tst_multi_set_time(tv->type, mytime);
+		tst_multi_set_time(tv->ts_type, mytime);
 		tsp = &ts;
 	} else if (tc->exp_err == EFAULT) {
 		tsp = bad_addr;
@@ -295,7 +302,8 @@ static void setup(void)
 	tst_res(TINFO, "Testing variant: %s", variants[tst_variant].desc);
 
 	bad_addr = tst_get_bad_addr(NULL);
-	SAFE_MKDIR(TEST_DIR, 0700);
+	if (access(TEST_DIR, R_OK))
+		SAFE_MKDIR(TEST_DIR, 0700);
 
 	for (i = 0; i < ARRAY_SIZE(tcase); i++)
 		update_error(&tcase[i]);
@@ -307,5 +315,6 @@ static struct tst_test test = {
 	.test_variants = ARRAY_SIZE(variants),
 	.setup = setup,
 	.needs_root = 1,
-	.needs_tmpdir = 1,
+	.mount_device = 1,
+	.mntpoint = MNTPOINT,
 };
