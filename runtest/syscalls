@@ -410,9 +410,6 @@ getcwd04 getcwd04
 getdents01 getdents01
 getdents02 getdents02
 
-getdents01_64 getdents01 -l
-getdents02_64 getdents02 -l
-
 getdomainname01 getdomainname01
 
 getdtablesize01 getdtablesize01
@@ -519,6 +516,9 @@ getxattr02 getxattr02
 getxattr03 getxattr03
 getxattr04 getxattr04
 getxattr05 getxattr05
+
+init_module01 init_module01
+init_module02 init_module02
 
 #Needs tty device.
 #ioctl01 ioctl01 -D /dev/tty0
@@ -803,6 +803,7 @@ msgctl02 msgctl02
 msgctl03 msgctl03
 msgctl04 msgctl04
 msgctl05 msgctl05
+msgctl06 msgctl06
 msgstress01 msgstress01
 msgstress02 msgstress02
 msgstress03 msgstress03
@@ -846,6 +847,9 @@ nanosleep01 nanosleep01
 nanosleep02 nanosleep02
 nanosleep04 nanosleep04
 
+name_to_handle_at01 name_to_handle_at01
+name_to_handle_at02 name_to_handle_at02
+
 nftw01 nftw01
 nftw6401 nftw6401
 
@@ -878,6 +882,9 @@ openat03 openat03
 openat201 openat201
 openat202 openat202
 openat203 openat203
+
+open_by_handle_at01 open_by_handle_at01
+open_by_handle_at02 open_by_handle_at02
 
 open_tree01 open_tree01
 open_tree02 open_tree02
@@ -1000,6 +1007,7 @@ ptrace07 ptrace07
 ptrace08 ptrace08
 ptrace09 ptrace09
 ptrace10 ptrace10
+ptrace11 ptrace11
 
 pwrite01 pwrite01
 pwrite02 pwrite02
@@ -1066,6 +1074,8 @@ recvfrom01 recvfrom01
 recvmsg01 recvmsg01
 recvmsg02 recvmsg02
 recvmsg03 recvmsg03
+
+recvmmsg01 recvmmsg01
 
 remap_file_pages01 remap_file_pages01
 remap_file_pages02 remap_file_pages02
@@ -1159,6 +1169,7 @@ sched_getattr02 sched_getattr02
 select01 select01
 select02 select02
 select03 select03
+select04 select04
 
 semctl01 semctl01
 semctl02 semctl02
@@ -1205,6 +1216,7 @@ sendmsg02 sendmsg02
 sendmsg03 sendmsg03
 
 sendmmsg01 sendmmsg01
+sendmmsg02 sendmmsg02
 
 sendto01 sendto01
 sendto02 sendto02
@@ -1556,8 +1568,6 @@ timer_settime03 timer_settime03
 tkill01 tkill01
 tkill02 tkill02
 
-truncate01 truncate01
-truncate01_64 truncate01_64
 truncate02 truncate02
 truncate02_64 truncate02_64
 truncate03 truncate03

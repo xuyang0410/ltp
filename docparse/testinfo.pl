@@ -119,6 +119,14 @@ sub table
 	return "|===\n";
 }
 
+sub table_escape
+{
+	my $out = $_[0];
+
+	$out =~ s/\|/\\|/g;
+	return $out;
+}
+
 sub print_defined
 {
 	my ($key, $val, $val2) = @_;
@@ -328,11 +336,22 @@ sub content_all_tests
 			}
 
 			$content .= "|" . tag2title($k) . "\n|";
+
 			if (ref($v) eq 'ARRAY') {
-				$content .= join(', ', @$v),
+				# two dimensional array
+				if (ref(@$v[0]) eq 'ARRAY') {
+					for my $v2 (@$v) {
+						$content .= paragraph(table_escape(join(' ', @$v2)));
+					}
+				} else {
+					# one dimensional array
+					$content .= table_escape(join(', ', @$v));
+				}
 			} else {
-				$content .= $v;
+				# plain content
+				$content .= table_escape($v);
 			}
+
 			$content .= "\n";
 
 			$tmp2 = 1;

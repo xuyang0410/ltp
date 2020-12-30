@@ -2,7 +2,10 @@
 /*
  * Copyright (C) 2020 Cyril Hrubis <chrubis@suse.cz>
  */
-/*
+
+/*\
+ * [DESCRIPTION]
+ *
  * Call shmctl() with SHM_INFO flag and check that:
  *
  * * The returned index points to a valid SHM by calling SHM_STAT_ANY
@@ -15,10 +18,11 @@
  *
  * Note what we create a SHM segment in the test setup to make sure that there
  * is at least one during the testrun.
- */
+\*/
 
 #define _GNU_SOURCE
 #include <stdio.h>
+#include <pwd.h>
 #include "tst_test.h"
 #include "tst_safe_sysv_ipc.h"
 #include "libnewipc.h"
@@ -27,6 +31,15 @@
 #define SHM_SIZE 2048
 
 static int shm_id = -1;
+static uid_t nobody_uid, root_uid;
+
+static struct tcases {
+	uid_t *uid;
+	char *desc;
+} tests[] = {
+	{&nobody_uid, "with nobody user"},
+	{&root_uid, "with root user"}
+};
 
 static void parse_proc_sysvipc(struct shm_info *info)
 {
@@ -96,11 +109,16 @@ static void parse_proc_sysvipc(struct shm_info *info)
 	fclose(f);
 }
 
-static void verify_shminfo(void)
+static void verify_shminfo(unsigned int n)
 {
+	struct tcases *tc = &tests[n];
 	struct shm_info info;
 	struct shmid_ds ds;
 	int i, shmid, cnt = 0;
+
+	tst_res(TINFO, "Test SHM_STAT_ANY %s", tc->desc);
+
+	SAFE_SETEUID(*tc->uid);
 
 	TEST(shmctl(0, SHM_INFO, (struct shmid_ds *)&info));
 
@@ -136,6 +154,10 @@ static void verify_shminfo(void)
 
 static void setup(void)
 {
+	struct passwd *ltpuser = SAFE_GETPWNAM("nobody");
+	nobody_uid = ltpuser->pw_uid;
+	root_uid = 0;
+
 	shm_id = SAFE_SHMGET(IPC_PRIVATE, SHM_SIZE, IPC_CREAT | SHM_RW);
 }
 
@@ -148,5 +170,7 @@ static void cleanup(void)
 static struct tst_test test = {
 	.setup = setup,
 	.cleanup = cleanup,
-	.test_all = verify_shminfo,
+	.test = verify_shminfo,
+	.tcnt = ARRAY_SIZE(tests),
+	.needs_root = 1,
 };

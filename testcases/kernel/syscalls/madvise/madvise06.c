@@ -54,7 +54,7 @@
 #define GROUP_NAME "madvise06"
 
 static const char drop_caches_fname[] = "/proc/sys/vm/drop_caches";
-static int pg_sz;
+static int pg_sz, stat_refresh_sup;
 
 static long init_swap, init_swap_cached, init_cached;
 
@@ -65,15 +65,19 @@ static void check_path(const char *path)
 }
 
 #define READ_CGMEM(item)						\
-	({long tst_rval;						\
-	  SAFE_FILE_LINES_SCANF(MNT_NAME"/"GROUP_NAME"/memory."item, 	\
-				"%ld",					\
-				&tst_rval);				\
+	({long tst_rval = 0;						\
+	  const char *cgpath = MNT_NAME"/"GROUP_NAME"/memory."item;	\
+	  if (!access(cgpath, R_OK))					\
+		  SAFE_FILE_LINES_SCANF(cgpath, "%ld", &tst_rval);	\
 	  tst_rval;})
 
 static void meminfo_diag(const char *point)
 {
-	FILE_PRINTF("/proc/sys/vm/stat_refresh", "1");
+	long rval;
+
+	if (stat_refresh_sup)
+		SAFE_FILE_PRINTF("/proc/sys/vm/stat_refresh", "1");
+
 	tst_res(TINFO, "%s", point);
 	tst_res(TINFO, "\tSwap: %ld Kb",
 		SAFE_READ_MEMINFO("SwapTotal:") - SAFE_READ_MEMINFO("SwapFree:") - init_swap);
@@ -83,10 +87,14 @@ static void meminfo_diag(const char *point)
 		SAFE_READ_MEMINFO("Cached:") - init_cached);
 	tst_res(TINFO, "\tcgmem.usage_in_bytes: %ld Kb",
 		READ_CGMEM("usage_in_bytes") / 1024);
-	tst_res(TINFO, "\tcgmem.memsw.usage_in_bytes: %ld Kb",
-		READ_CGMEM("memsw.usage_in_bytes") / 1024);
-	tst_res(TINFO, "\tcgmem.kmem.usage_in_bytes: %ld Kb",
-		READ_CGMEM("kmem.usage_in_bytes") / 1024);
+
+	rval = READ_CGMEM("memsw.usage_in_bytes") / 1024;
+	if (rval)
+		tst_res(TINFO, "\tcgmem.memsw.usage_in_bytes: %ld Kb", rval);
+
+	rval = READ_CGMEM("kmem.usage_in_bytes") / 1024;
+	if (rval)
+		tst_res(TINFO, "\tcgmem.kmem.usage_in_bytes: %ld Kb", rval);
 }
 
 static void setup(void)
@@ -124,8 +132,11 @@ static void setup(void)
 	SAFE_FILE_PRINTF("/proc/self/oom_score_adj", "%d", -1000);
 	SAFE_FILE_PRINTF(MNT_NAME"/"GROUP_NAME"/memory.limit_in_bytes", "%ld\n",
 			 MEM_LIMIT);
-	SAFE_FILE_PRINTF(MNT_NAME"/"GROUP_NAME"/memory.memsw.limit_in_bytes", "%ld\n",
-			 MEMSW_LIMIT);
+
+	if (!access(MNT_NAME"/"GROUP_NAME"/memory.memsw.limit_in_bytes", W_OK)) {
+		SAFE_FILE_PRINTF(MNT_NAME"/"GROUP_NAME"/memory.memsw.limit_in_bytes",
+				 "%ld\n", MEMSW_LIMIT);
+	}
 	SAFE_FILE_PRINTF(MNT_NAME"/"GROUP_NAME"/memory.swappiness", "60");
 	SAFE_FILE_PRINTF(MNT_NAME"/"GROUP_NAME"/tasks", "%d\n", getpid());
 
@@ -133,6 +144,9 @@ static void setup(void)
 	init_swap = SAFE_READ_MEMINFO("SwapTotal:") - SAFE_READ_MEMINFO("SwapFree:");
 	init_swap_cached = SAFE_READ_MEMINFO("SwapCached:");
 	init_cached = SAFE_READ_MEMINFO("Cached:");
+
+	if (!access("/proc/sys/vm/stat_refresh", W_OK))
+		stat_refresh_sup = 1;
 
 	tst_res(TINFO, "mapping %ld Kb (%ld pages), limit %ld Kb, pass threshold %ld Kb",
 		CHUNK_SZ / 1024, CHUNK_SZ / pg_sz, MEM_LIMIT / 1024, PASS_THRESHOLD_KB);
@@ -194,7 +208,8 @@ static void test_advice_willneed(void)
 	do {
 		loops--;
 		usleep(100000);
-		FILE_PRINTF("/proc/sys/vm/stat_refresh", "1");
+		if (stat_refresh_sup)
+			SAFE_FILE_PRINTF("/proc/sys/vm/stat_refresh", "1");
 		SAFE_FILE_LINES_SCANF("/proc/meminfo", "SwapCached: %ld",
 			&swapcached);
 	} while (swapcached < swapcached_start + PASS_THRESHOLD_KB && loops > 0);

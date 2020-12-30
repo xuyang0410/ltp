@@ -5,7 +5,7 @@
 set -e
 
 top_builddir=$PWD/..
-top_srcdir="$(dirname $0)/.."
+top_srcdir="$(cd $(dirname $0)/..; pwd)"
 
 cd $top_srcdir
 
@@ -32,7 +32,9 @@ for test in `find testcases/ -name '*.c'`; do
 			echo ','
 		fi
 		first=
-		echo -n "$a"
+		cat <<EOF
+$a
+EOF
 	fi
 done
 

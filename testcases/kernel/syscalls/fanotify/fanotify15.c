@@ -22,12 +22,10 @@
 #include <fcntl.h>
 #include <sys/statfs.h>
 #include <sys/types.h>
-
 #include "tst_test.h"
-#include "fanotify.h"
 
-#if defined(HAVE_SYS_FANOTIFY_H)
-#include <sys/fanotify.h>
+#ifdef HAVE_SYS_FANOTIFY_H
+#include "fanotify.h"
 
 #define EVENT_MAX 10
 
@@ -85,21 +83,10 @@ static void do_test(unsigned int number)
 
 	tst_res(TINFO, "Test #%d: %s", number, tc->tname);
 
-	if (fanotify_mark(fanotify_fd, FAN_MARK_ADD | mark->flag, tc->mask |
+	SAFE_FANOTIFY_MARK(fanotify_fd, FAN_MARK_ADD | mark->flag, tc->mask |
 				FAN_CREATE | FAN_DELETE | FAN_MOVE |
 				FAN_MODIFY | FAN_ONDIR,
-				AT_FDCWD, TEST_DIR) == -1) {
-		if (errno == ENODEV || errno == EOPNOTSUPP || errno == EXDEV)
-			tst_brk(TCONF,
-				"FAN_REPORT_FID not supported on %s "
-				"filesystem", tst_device->fs_type);
-		tst_brk(TBROK | TERRNO,
-			"fanotify_mark(%d, FAN_MARK_ADD | %s, "
-			"FAN_CREATE | FAN_DELETE | FAN_MOVE | "
-			"FAN_MODIFY | FAN_ONDIR | 0x%lx, "
-			"AT_FDCWD, %s) failed",
-			fanotify_fd, mark->name, tc->mask, TEST_DIR);
-	}
+				AT_FDCWD, TEST_DIR);
 
 	/* Save the test root dir fid */
 	fanotify_save_fid(TEST_DIR, &root_fid);
@@ -191,13 +178,8 @@ static void do_test(unsigned int number)
 	/*
 	 * Cleanup the mark
 	 */
-	if (fanotify_mark(fanotify_fd, FAN_MARK_FLUSH | mark->flag, 0,
-			  AT_FDCWD, TEST_DIR) < 0) {
-		tst_brk(TBROK | TERRNO,
-			"fanotify_mark (%d, FAN_MARK_FLUSH | %s, 0,"
-			"AT_FDCWD, '"TEST_DIR"') failed",
-			fanotify_fd, mark->name);
-	}
+	SAFE_FANOTIFY_MARK(fanotify_fd, FAN_MARK_FLUSH | mark->flag, 0,
+			  AT_FDCWD, TEST_DIR);
 
 	/* Process each event in buffer */
 	for (i = 0, metadata = (struct fanotify_event_metadata *) events_buf;
@@ -287,22 +269,9 @@ static void do_test(unsigned int number)
 
 static void do_setup(void)
 {
-	int fd;
-
-	/* Check kernel for fanotify support */
-	fd = SAFE_FANOTIFY_INIT(FAN_CLASS_NOTIF, O_RDONLY);
-	SAFE_CLOSE(fd);
-
-	fanotify_fd = fanotify_init(FAN_REPORT_FID, O_RDONLY);
-	if (fanotify_fd == -1) {
-		if (errno == EINVAL)
-			tst_brk(TCONF,
-				"FAN_REPORT_FID not supported in kernel");
-		tst_brk(TBROK | TERRNO,
-			"fanotify_init(FAN_REPORT_FID, O_RDONLY) failed");
-	}
-
 	SAFE_MKDIR(TEST_DIR, 0755);
+	REQUIRE_FANOTIFY_INIT_FLAGS_SUPPORTED_ON_FS(FAN_REPORT_FID, TEST_DIR);
+	fanotify_fd = SAFE_FANOTIFY_INIT(FAN_REPORT_FID, O_RDONLY);
 }
 
 static void do_cleanup(void)
